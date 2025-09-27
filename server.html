@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ask Gemini — Inline Widget</title>
+  <style>
+    :root{
+      --bg: radial-gradient(1200px 600px at 20% -10%, #14203b 0%, #0b1224 60%, #070a15 100%);
+      --card: rgba(16,23,42,.82);
+      --text:#e6ecff; --muted:#9aa6b2; --border:#223155;
+      --primary:#3b82f6; --shadow:0 12px 30px rgba(0,0,0,.35);
+    }
+    body{
+      margin:0; background:var(--bg); color:var(--text);
+      font-family:Inter,system-ui,Segoe UI,Roboto,Arial; padding:24px;
+    }
+    .box{max-width:760px;margin:0 auto}
+    .row{display:flex;align-items:center;gap:12px}
+    .dot{width:12px;height:12px;border-radius:50%;background:var(--primary);box-shadow:0 0 0 6px rgba(59,130,246,.12)}
+    h1{margin:0;font-size:20px}
+    .muted{color:var(--muted);font-size:14px}
+    .status{margin-left:auto;color:var(--muted);font-size:12px}
+    .card{margin-top:12px;border:1px solid var(--border);background:var(--card);border-radius:14px;box-shadow:var(--shadow);padding:12px}
+    #log{height:280px;overflow:auto;border:1px solid var(--border);border-radius:10px;padding:10px;background:rgba(8,12,24,.6)}
+    .msg{display:flex;margin:8px 0}
+    .msg .bubble{white-space:pre-wrap;max-width:75%;padding:10px 12px;border-radius:10px;border:1px solid var(--border)}
+    .me{justify-content:flex-end}
+    .me .bubble{background:#1e3a8a;color:#fff;border-color:transparent}
+    .ai .bubble{background:#0b1224;color:#e6ecff}
+    .bar{display:flex;gap:8px;margin-top:10px}
+    input{flex:1;padding:12px;border-radius:10px;border:1px solid var(--border);background:#0f1b38;color:#e6ecff;outline:none}
+    button{padding:12px 14px;border-radius:10px;border:0;background:#3b82f6;color:#fff;cursor:pointer}
+    .pills{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap}
+    .pill{font-size:12px;padding:6px 10px;border-radius:999px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:#e6ecff;cursor:pointer}
+  </style>
+</head>
+<body>
+  <div class="box">
+    <div class="row">
+      <div class="dot"></div>
+      <h1>Ask Gemini — Inline Widget</h1>
+      <div class="status" id="status">proxy: checking…</div>
+    </div>
+    <p class="muted">Type anything or click a suggestion. Messages are sent to your local proxy, which calls the Gemini API safely.</p>
+
+    <div class="card">
+      <div id="log" aria-live="polite"></div>
+
+      <div class="bar">
+        <input id="q" type="text" placeholder="e.g. Compare Greece and Italy for air quality">
+        <button id="send">Send</button>
+      </div>
+
+      <div class="pills">
+        <button class="pill">What is AQI in simple terms?</button>
+        <button class="pill">Compare Greece and Italy</button>
+        <button class="pill">Is it safe to run in Paris today?</button>
+        <button class="pill">Tips for high AQI days</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const ENDPOINT = 'http://localhost:8787/api/gemini'; // άλλαξε το αν τρέχεις αλλού
+  const log = document.getElementById('log');
+  const q   = document.getElementById('q');
+  const btn = document.getElementById('send');
+  const statusEl = document.getElementById('status');
+
+  function add(role, text){
+    const wrap = document.createElement('div');
+    wrap.className = 'msg ' + (role === 'user' ? 'me' : 'ai');
+    const b = document.createElement('div');
+    b.className = 'bubble';
+    b.textContent = text;
+    wrap.appendChild(b);
+    log.appendChild(wrap);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  async function ask(prompt){
+    if (!prompt) return;
+    add('user', prompt);
+    q.value = '';
+    btn.disabled = true;
+
+    try{
+      const r = await fetch(ENDPOINT, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ prompt })
+      });
+      if (!r.ok){
+        const err = await r.text();
+        add('ai', 'Could not reach proxy.\n' + err);
+      } else {
+        const data = await r.json();
+        add('ai', data.text || '(no response)');
+      }
+    }catch(e){
+      add('ai','Network error. Is the proxy running?');
+    }finally{
+      btn.disabled = false;
+    }
+  }
+
+  btn.addEventListener('click', ()=> ask(q.value.trim()));
+  q.addEventListener('keydown', e => { if (e.key === 'Enter') ask(q.value.trim()); });
+  document.querySelectorAll('.pill').forEach(p => p.addEventListener('click', () => { q.value = p.textContent; q.focus(); }));
+
+  // health check (χωρίς χρέωση) — στέλνει "ping" και περιμένει "pong"
+  fetch(ENDPOINT, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ prompt: 'ping' })
+  })
+  .then(r => r.ok ? r.json() : Promise.reject())
+  .then(() => statusEl.textContent = 'proxy: OK')
+  .catch(() => statusEl.textContent = 'proxy: unreachable');
+})();
+</script>
+</body>
+</html>
+
+
+
