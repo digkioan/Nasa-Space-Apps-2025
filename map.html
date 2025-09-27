@@ -60,6 +60,32 @@
     <button id="toggleSpin">⏸ Stop</button>
   </div>
 
+<!-- Data controls (static CSVs, no uploads) -->
+<div class="panel" style="top:58px; gap:8px;">
+  <label style="display:flex;align-items:center;gap:6px">
+    Dataset:
+    <select id="datasetSel"></select>
+  </label>
+  <label style="display:flex;align-items:center;gap:6px">
+    Date:
+    <select id="dateSel"></select>
+  </label>
+  <button id="renderBtn">Render</button>
+  <span id="status" style="opacity:.8"></span>
+</div>
+
+<!-- Legend -->
+<div class="panel" style="top:104px; gap:10px;">
+  <div style="display:flex;flex-direction:column;gap:4px">
+    <div style="font-size:12px;opacity:.85">Value legend</div>
+    <canvas id="legend" width="160" height="12" style="border-radius:6px"></canvas>
+    <div style="display:flex;justify-content:space-between;font-size:11px;opacity:.85">
+      <span id="legMin">min</span><span id="legMax">max</span>
+    </div>
+  </div>
+</div>
+
+
   <!-- On‑screen joystick -->
   <div class="joystick" id="joy"><div class="stick" id="stick"></div></div>
 
@@ -101,6 +127,200 @@
     }
 
     const wwd = initWorldWind();
+
+    // ====== DATASETS: point these to your hosted CSVs ======
+const DATASETS = [
+  { key: 'no2_temp_data.csv',    label: 'NO₂ — Previous Years', url: 'no2_temp_data.csv' },
+  { key: 'no2_prediction.csv', label: 'NO₂ — Prediction',     url: 'no2_prediction.csv' }
+  // Add more, e.g. O3, SO2...
+];
+
+// ====== Overlay tuning ======
+const OVERLAY_RADIUS_M = 12000;   // ~12 km dot radius
+const OVERLAY_ALPHA    = 0.55;    // transparency
+
+// ====== Internals ======
+let datasets = new Map();         // key -> { rows, byDate, dates, minMaxByDate, label }
+let currentOverlayLayer = null;
+
+// --- CSV parsing (expects: time,latitude,longitude,value) ---
+function parseCsv(text) {
+  const lines = text.trim().split(/\r?\n/);
+  if (!lines.length) return [];
+  const header = lines[0].split(',').map(s=>s.trim().toLowerCase());
+  const idx = {
+    time: header.indexOf('time'),
+    lat:  header.indexOf('latitude'),
+    lon:  header.indexOf('longitude'),
+    val:  header.indexOf('value'),
+  };
+  if (Object.values(idx).some(i => i < 0)) throw new Error('CSV must have time,latitude,longitude,value columns');
+  const out = [];
+  for (let i=1;i<lines.length;i++){
+    const parts = lines[i].split(',');
+    if (parts.length < 4) continue;
+    const t = (parts[idx.time]||'').trim();
+    const iso = t.length >= 10 ? t.slice(0,10) : t;
+    const lat = parseFloat(parts[idx.lat]);
+    const lon = parseFloat(parts[idx.lon]);
+    const val = parseFloat(parts[idx.val]);
+    if (!isFinite(lat) || !isFinite(lon) || !isFinite(val) || !iso) continue;
+    out.push({ time: iso, lat, lon, val });
+  }
+  return out;
+}
+
+// Robust min/max (ignore 1% tails)
+function robustMinMax(values) {
+  const v = values.slice().sort((a,b)=>a-b);
+  if (!v.length) return {min:0,max:1};
+  const q = p => v[Math.floor(Math.min(v.length-1, Math.max(0, p*(v.length-1))))];
+  const min = q(0.01), max = q(0.99);
+  return min === max ? {min: min-1, max: max+1} : {min, max};
+}
+
+// Color scale (blue→light-blue→yellow→red)
+function valueToColor(val, min, max, alpha=1) {
+  const t = Math.max(0, Math.min(1, (val - min) / (max - min)));
+  const stops = [
+    {t:0.00, c:[ 44,123,182]},
+    {t:0.33, c:[171,217,233]},
+    {t:0.66, c:[255,255,191]},
+    {t:1.00, c:[215, 25, 28]}
+  ];
+  let c0=stops[0].c, c1=stops.at(-1).c, t0=0, t1=1;
+  for (let i=0;i<stops.length-1;i++){
+    if (t>=stops[i].t && t<=stops[i+1].t){ c0=stops[i].c; c1=stops[i+1].c; t0=stops[i].t; t1=stops[i+1].t; break; }
+  }
+  const k = (t - t0) / (t1 - t0);
+  const r = Math.round(c0[0] + (c1[0]-c0[0])*k)/255;
+  const g = Math.round(c0[1] + (c1[1]-c0[1])*k)/255;
+  const b = Math.round(c0[2] + (c1[2]-c0[2])*k)/255;
+  return new WorldWind.Color(r,g,b,alpha);
+}
+
+// Legend painter
+function paintLegend(min, max) {
+  const cv = document.getElementById('legend');
+  const ctx = cv.getContext('2d');
+  const w=cv.width,h=cv.height;
+  const img = ctx.createImageData(w,h);
+  for (let x=0;x<w;x++){
+    const t = x/(w-1);
+    const c = valueToColor(min + t*(max-min), min, max, 1);
+    const R = Math.round(c.red*255), G=Math.round(c.green*255), B=Math.round(c.blue*255);
+    for (let y=0;y<h;y++){
+      const i=(y*w+x)*4; img.data[i]=R; img.data[i+1]=G; img.data[i+2]=B; img.data[i+3]=255;
+    }
+  }
+  ctx.putImageData(img,0,0);
+  document.getElementById('legMin').textContent = min.toExponential(2);
+  document.getElementById('legMax').textContent = max.toExponential(2);
+}
+
+// Build layer
+function makeOverlayLayer(rows, min, max, title='Overlay'){
+  const layer = new WorldWind.RenderableLayer(title);
+  const base = new WorldWind.ShapeAttributes(null);
+  base.drawOutline = false; base.applyLighting = false;
+  for (const r of rows){
+    const sa = new WorldWind.ShapeAttributes(base);
+    sa.interiorColor = valueToColor(r.val, min, max, OVERLAY_ALPHA);
+    const circle = new WorldWind.SurfaceCircle(new WorldWind.Location(r.lat, r.lon), OVERLAY_RADIUS_M, sa);
+    layer.addRenderable(circle);
+  }
+  return layer;
+}
+
+function removeCurrentLayer(){
+  if (currentOverlayLayer){ wwd.removeLayer(currentOverlayLayer); currentOverlayLayer=null; wwd.redraw(); }
+}
+
+// Render selection
+function renderSelected(){
+  const dsKey = document.getElementById('datasetSel').value;
+  const date  = document.getElementById('dateSel').value;
+  const ds = datasets.get(dsKey);
+  if (!ds){ document.getElementById('status').textContent = 'Dataset not loaded'; return; }
+  const rows = ds.byDate.get(date) || [];
+  if (!rows.length){
+    document.getElementById('status').textContent = `No rows for ${date}`;
+    removeCurrentLayer(); return;
+  }
+  const mm = ds.minMaxByDate.get(date) || robustMinMax(rows.map(r=>r.val));
+  removeCurrentLayer();
+  currentOverlayLayer = makeOverlayLayer(rows, mm.min, mm.max, `${dsKey} ${date}`);
+  wwd.addLayer(currentOverlayLayer); wwd.redraw();
+  paintLegend(mm.min, mm.max);
+  document.getElementById('status').textContent = `Rendered ${rows.length} points (${date})`;
+}
+
+// Dataset loading
+async function loadDataset(def){
+  const res = await fetch(def.url, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`Failed to fetch ${def.url}: ${res.status}`);
+  const text = await res.text();
+  const rows = parseCsv(text);
+  const byDate = new Map();
+  for (const r of rows){
+    const arr = byDate.get(r.time) || []; arr.push(r); byDate.set(r.time, arr);
+  }
+  const dates = Array.from(byDate.keys()).sort();
+  const minMaxByDate = new Map();
+  for (const d of dates){
+    const vs = (byDate.get(d)||[]).map(x=>x.val).filter(Number.isFinite);
+    minMaxByDate.set(d, robustMinMax(vs));
+  }
+  datasets.set(def.key, { rows, byDate, dates, minMaxByDate, label: def.label });
+}
+
+async function loadAllDatasets(){
+  const dsSel = document.getElementById('datasetSel');
+  dsSel.innerHTML = '';
+  document.getElementById('status').textContent = 'Loading datasets…';
+  for (const def of DATASETS){
+    try{
+      await loadDataset(def);
+      const opt = document.createElement('option');
+      opt.value = def.key; opt.textContent = def.label;
+      dsSel.appendChild(opt);
+    }catch(e){ console.error(e); }
+  }
+  if (!dsSel.options.length){
+    document.getElementById('status').textContent = 'No datasets loaded (check URLs).';
+    return;
+  }
+  dsSel.addEventListener('change', onDatasetChange);
+  onDatasetChange();
+}
+
+function onDatasetChange(){
+  const dsKey = document.getElementById('datasetSel').value;
+  const ds = datasets.get(dsKey);
+  const dateSel = document.getElementById('dateSel');
+  dateSel.innerHTML = '';
+  for (const d of ds.dates){
+    const opt = document.createElement('option');
+    opt.value = d; opt.textContent = d;
+    dateSel.appendChild(opt);
+  }
+  document.getElementById('status').textContent = `Loaded ${ds.rows.length} rows, ${ds.dates.length} day(s)`;
+  renderSelected();
+}
+
+document.getElementById('renderBtn').addEventListener('click', renderSelected);
+
+// Optional: center on Greece initially
+(function flyToGreece(){
+  if (!wwd) return;
+  wwd.navigator.lookAtLocation.latitude = 39.0;
+  wwd.navigator.lookAtLocation.longitude = 23.5;
+  wwd.navigator.range = 8.5e5; wwd.redraw();
+})();
+
+// Kickoff dataset loading
+loadAllDatasets();
+
 
     // ====== UI: Start/Stop auto-rotate ======
     const btn = document.getElementById('toggleSpin');
