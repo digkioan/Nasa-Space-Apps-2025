@@ -3,8 +3,8 @@ import numpy as np, pandas as pd, tensorflow as tf
 from tensorflow import keras
 from datetime import date, timedelta
 
-CSV_HISTORY = "no2_merged_time_lat_lon.csv"
-OUTPUT_CSV  = "no2_prediction.csv"
+CSV_HISTORY = "o3_merged_unified.csv" #vale edw auto p thes 
+OUTPUT_CSV  = "o3_prediction.csv"
 RANDOM_SEED = 42
 
 # Prediction window (inclusive)
@@ -102,7 +102,7 @@ def main():
     # ----- Normalizer + Model -----
     norm = keras.layers.Normalization(axis=-1); norm.adapt(X_train)
     model = build_model(X_train.shape[1], norm)
-    es = keras.callbacks.EarlyStopping(monitor="val_loss", patience=20, restore_best_weights=True)
+    es = keras.callbacks.EarlyStopping(monitor="val_loss", patience=300, restore_best_weights=True)
     model.fit(
         X_train, y_train,
         validation_data=(X_val, y_val) if len(X_val) else None,
