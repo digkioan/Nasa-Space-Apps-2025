@@ -1,99 +1,86 @@
 <!DOCTYPE html>
-<html lang="el" data-theme="light">
+<html lang="el" data-theme="dark">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Συνολική Μέτρηση — Ποιότητα Ζωής & Αέρα</title>
-  <style>
-    :root{
-      --bg: linear-gradient(180deg,#0b1224,#0f1b38);
-      --card: rgba(16,23,42,.78);
-      --text:#e6ecff; --muted:#9aa6b2; --border:#223155;
-      --good:#34d399; --mid:#fbbf24; --bad:#f87171;
-      --primary:#3b82f6; --shadow:0 12px 30px rgba(0,0,0,.35);
-    }
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    body{
-      margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;
-      color:var(--text); background:var(--bg);
-      overflow-x:hidden;
-    }
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Συνολική Μέτρηση — Live από OpenAQ & World Bank</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+  :root{
+    --bg: linear-gradient(180deg,#0b1224,#0f1b38);
+    --card: rgba(16,23,42,.78);
+    --text:#e6ecff; --muted:#9aa6b2; --border:#223155;
+    --good:#22c55e; --mid:#fbbf24; --bad:#ef4444;
+    --primary:#3b82f6; --shadow:0 12px 30px rgba(0,0,0,.35);
+    --bg-zoom: 100%; --bg-brightness: 1.25; --bg-opacity:.45;
+    --select-bg:#0f1b38; --select-text:#e6ecff; --select-border:#2a3a63;
+  }
+  *{box-sizing:border-box} html,body{height:100%}
+  body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;color:var(--text);background:var(--bg);overflow-x:hidden}
+  /* Animated background GIF */
+  .bg-windy{position:fixed; inset:0; z-index:0; pointer-events:none;
+    background:url("gif_background.gif") center/var(--bg-zoom) no-repeat fixed;
+    filter:brightness(var(--bg-brightness)) saturate(1.15) contrast(1.05);
+    opacity:var(--bg-opacity);}
+  .bg-windy::after{content:""; position:absolute; inset:0; pointer-events:none;
+    background:radial-gradient(1200px 600px at 30% -10%, transparent 0%, rgba(0,0,0,.25) 70%),
+               linear-gradient(180deg, rgba(0,0,0,.22), rgba(0,0,0,.08) 30%, rgba(0,0,0,.22));
+    mix-blend-mode:multiply;}
+  .wrap{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:20px}
+  .top{display:flex;align-items:center;gap:12px}
+  .logo{display:flex;align-items:center;gap:8px}
+  .dot{width:12px;height:12px;border-radius:50%;background:var(--primary);box-shadow:0 0 0 6px rgba(59,130,246,.12)}
+  h1{margin:0;font-size:1.6rem} .muted{color:var(--muted);font-size:14px}
+  .card{background:var(--card);backdrop-filter:blur(8px);border:1px solid var(--border);border-radius:18px;padding:16px;box-shadow:var(--shadow)}
+  .row{display:flex;gap:14px;flex-wrap:wrap} .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  /* Select */
+  select{
+    border:1px solid var(--select-border); background:var(--select-bg); color:var(--select-text);
+    border-radius:14px; padding:12px 14px; font-size:15px; -webkit-appearance:none; appearance:none;
+    background-image:linear-gradient(45deg,transparent 50%, var(--select-text) 50%),
+                     linear-gradient(135deg, var(--select-text) 50%, transparent 50%);
+    background-position:calc(100% - 22px) calc(50% - 3px), calc(100% - 16px) calc(50% - 3px);
+    background-size:6px 6px, 6px 6px; background-repeat:no-repeat; padding-right:36px;}
+  select option{ background:var(--select-bg); color:var(--select-text); }
+  .btn.primary{border:1px solid transparent;background:#3b82f6;color:#fff;border-radius:12px;padding:10px 12px;cursor:pointer}
+  .btn.primary[disabled]{opacity:.7; cursor:not-allowed}
 
-    /* === Windy-like animated background (put your GIF path below) === */
-    .bg-windy{
-      position:fixed; inset:0; z-index:0; pointer-events:none;
-      background: url("gif_background.gif") center / cover no-repeat fixed; /* ← ΑΛΛΑΞΕ ΤΟ ΜΟΝΟ ΑΥΤΟ */
-      filter: blur(1px) brightness(.9) saturate(1.05);
-      opacity:.35;
-    }
-    /* soft vignette to κρατάει αναγνωσιμότητα */
-    .bg-windy::after{
-      content:""; position:absolute; inset:0; pointer-events:none;
-      background: radial-gradient(1200px 600px at 30% -10%, transparent 0%, rgba(0,0,0,.25) 70%),
-                  linear-gradient(180deg, rgba(0,0,0,.25), rgba(0,0,0,.1) 30%, rgba(0,0,0,.25));
-      mix-blend-mode:multiply;
-    }
+  /* Donut */
+  .meter{position:relative;width:220px;height:220px}
+  .meter svg{transform:rotate(-90deg)}
+  .num{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .num .big{font-size:46px;font-weight:800} .num .label{font-size:12px;color:var(--muted)}
+  .emoji{font-size:34px;margin-top:6px;animation:floaty 3s ease-in-out infinite}
+  @keyframes floaty{0%{transform:translateY(0)}50%{transform:translateY(-4px)}100%{transform:translateY(0)}}
 
-    .wrap{position:relative; z-index:1; max-width:980px; margin:0 auto; padding:20px}
-    .top{display:flex;align-items:center;gap:12px}
-    .logo{display:flex;align-items:center;gap:8px}
-    .dot{width:12px;height:12px;border-radius:50%;background:var(--primary);box-shadow:0 0 0 6px rgba(59,130,246,.12)}
-    h1{margin:0;font-size:1.5rem}
-    .muted{color:var(--muted);font-size:14px}
+  /* KPIs */
+  .icons{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}
+  .ico{display:flex;gap:10px;align-items:center;border:1px solid var(--border);border-radius:14px;padding:14px;background:rgba(16,23,42,.6);transition:background .25s,border-color .25s,box-shadow .25s}
+  .ico svg{width:24px;height:24px}
 
-    .card{background:var(--card);backdrop-filter:blur(8px);border:1px solid var(--border);border-radius:18px;padding:16px;box-shadow:var(--shadow)}
-    .row{display:flex;gap:14px;flex-wrap:wrap}
-    .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-    select,.btn{border:1px solid var(--border);background:transparent;border-radius:12px;padding:10px 12px;font-size:14px;color:var(--text)}
-    .btn.primary{background:var(--primary);color:#fff;border-color:transparent}
-
-    .switch{display:inline-flex;align-items:center;gap:8px;cursor:pointer}
-    .switch input{display:none}
-    .switch .track{width:44px;height:26px;border-radius:999px;background:#1f2b46;position:relative}
-    .switch .thumb{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:var(--primary);transition:left .2s}
-    .switch input:checked + .track .thumb{left:21px}
-
-    /* --- Meter (donut) --- */
-    .meter{position:relative;width:220px;height:220px}
-    .meter svg{transform:rotate(-90deg)}
-    .num{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
-    .num .big{font-size:46px;font-weight:800;line-height:1}
-    .num .label{font-size:12px;color:var(--muted)}
-    .emoji{font-size:34px;margin-top:6px;animation:floaty 3s ease-in-out infinite}
-
-    /* --- Good/Bad bar --- */
-    .bar{position:relative;height:14px;border-radius:999px;background:#1f2937;overflow:hidden;border:1px solid var(--border)}
-    .bar .good{height:100%;background:var(--good);width:0}
-    .bar .bad{height:100%;background:var(--bad);width:0;position:absolute;right:0}
-    .split-row{display:flex;justify-content:space-between;margin-top:6px;font-size:13px}
-    .pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px solid var(--border);background:rgba(16,23,42,.6)}
-    .pill .dot{width:10px;height:10px;border-radius:50%}
-    .pill.good .dot{background:var(--good)} .pill.bad .dot{background:var(--bad)}
-
-    /* --- Icon grid --- */
-    .icons{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}
-    .ico{display:flex;gap:10px;align-items:center;border:1px solid var(--border);border-radius:14px;padding:10px;background:rgba(16,23,42,.6)}
-    .ico svg{width:24px;height:24px}
-
-    @keyframes floaty{0%{transform:translateY(0)}50%{transform:translateY(-4px)}100%{transform:translateY(0)}}
-  </style>
+  /* Stats (χωρίς scatter) */
+  h3{font-size:1rem}
+  .stats-grid{display:grid; gap:12px; grid-template-columns:repeat(2,1fr)}
+  @media (max-width:1000px){ .stats-grid{ grid-template-columns:1fr } }
+  .stat-card{background:rgba(16,23,42,.65); border:1px solid var(--border); border-radius:14px; padding:12px}
+  .stat-title{ color:var(--muted); font-size:13px; margin-bottom:8px }
+  .rank-table .row{display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px dashed rgba(255,255,255,.08)}
+  .rank-table .row:last-child{ border-bottom:0 }
+  .tag{ padding:4px 8px; border-radius:999px; font-size:12px; border:1px solid var(--border); background:rgba(255,255,255,.04) }
+</style>
 </head>
 <body>
-
-  <!-- Animated Windy-like background (GIF) -->
   <div class="bg-windy"></div>
 
   <div class="wrap">
     <div class="top">
-      <div class="logo"><div class="dot"></div><h1>Συνολική Μέτρηση</h1></div>
+      <div class="logo"><div class="dot"></div><h1>Overall Score</h1></div>
       <div style="flex:1"></div>
-      <label class="switch" title="Dark (visual only)">
-        <input id="theme" type="checkbox"><div class="track"><div class="thumb"></div></div>
-        <span class="muted">Dark</span>
-      </label>
+      <span class="muted">Live: OpenAQ + World Bank</span>
     </div>
-    <div class="muted" style="margin-top:6px">Μία τιμή που συνοψίζει ποιότητα ζωής και ποιότητα αέρα. Διάλεξε χώρα και δες το αποτέλεσμα.</div>
+
+    <div class="muted" style="margin-top:6px">
+      Pick a country and press Compute. If an API is slow, safe fallbacks are used temporarily.
 
     <div class="card" style="margin-top:12px">
       <div class="controls">
@@ -104,13 +91,12 @@
           <option>Poland</option><option>Czechia</option><option>Austria</option><option>Switzerland</option>
           <option>United States</option><option>Canada</option><option>Japan</option><option>Australia</option>
         </select>
-        <button id="run" class="btn primary">Υπολόγισε</button>
+        <button id="run" class="btn primary">Compute</button>
       </div>
     </div>
 
     <div class="row" style="margin-top:12px">
-      <!-- Donut -->
-      <div class="card" style="flex:1 1 360px;display:flex;gap:18px;align-items:center;justify-content:center">
+      <div class="card" style="flex:1 1 460px;display:flex;gap:18px;align-items:center;justify-content:center;min-width:320px">
         <div class="meter">
           <svg width="220" height="220">
             <circle cx="110" cy="110" r="92" stroke="#25324c" stroke-width="18" fill="none"/>
@@ -118,107 +104,201 @@
           </svg>
           <div class="num">
             <div id="score" class="big">—</div>
-            <div class="label">Συνολική Βαθμολογία</div>
+            <div class="label">Overall score</div>
             <div id="face" class="emoji">🙂</div>
           </div>
         </div>
       </div>
 
-      <!-- Split bar + icons -->
-      <div class="card" style="flex:1 1 420px">
-        <div class="muted">Κατανομή</div>
-        <div class="bar" style="margin-top:6px">
-          <div id="goodBar" class="good"></div>
-          <div id="badBar" class="bad"></div>
-        </div>
-        <div class="split-row">
-          <div class="pill good"><div class="dot"></div><span>Καλό</span> <b id="goodPct">—</b></div>
-          <div class="pill bad"><div class="dot"></div><span>Όχι τόσο καλό</span> <b id="badPct">—</b></div>
-        </div>
-
+      <div class="card" style="flex:1 1 520px;min-width:320px">
         <div class="icons">
-          <div class="ico">
+          <div class="ico" id="kpi_air">
             <svg viewBox="0 0 24 24" fill="none" stroke="var(--good)" stroke-width="2"><path d="M5 21c8 0 14-6 14-14V3h-4C7 3 3 7 3 13v8h2z"/><path d="M9 15l6-6"/></svg>
-            <div><div class="muted">Αέρας</div><b id="ico_air">—</b></div>
+            <div><div class="muted">Air</div><b id="ico_air">—</b></div>
           </div>
-          <div class="ico">
+          <div class="ico" id="kpi_qol">
             <svg viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><path d="M3 9.5L12 3l9 6.5V21a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1V9.5z"/></svg>
-            <div><div class="muted">Ζωή</div><b id="ico_qol">—</b></div>
+            <div><div class="muted">Life</div><b id="ico_qol">—</b></div>
           </div>
-          <div class="ico">
+          <div class="ico" id="kpi_rank">
             <svg viewBox="0 0 24 24" fill="none" stroke="var(--mid)" stroke-width="2"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M4 4h16v3a5 5 0 0 1-5 5H9A5 5 0 0 1 4 7V4z"/><path d="M4 7H2a3 3 0 0 0 3 3"/><path d="M20 7h2a3 3 0 0 1-3 3"/></svg>
-            <div><div class="muted">Θέση</div><b id="ico_rank">—</b></div>
+            <div><div class="muted">Rank</div><b id="ico_rank">—</b></div>
           </div>
-          <div class="ico">
+          <div class="ico" id="kpi_flag">
             <svg viewBox="0 0 24 24" fill="none" stroke="var(--text)" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8h.01"/><path d="M11 12h2v4h-2z"/></svg>
-            <div><div class="muted">Σήμανση</div><b id="ico_flag">—</b></div>
+            <div><div class="muted">Summary</div><b id="ico_flag">—</b></div>
           </div>
         </div>
       </div>
     </div>
+
+    <!-- ΣΤΑΤΙΣΤΙΚΑ: Σύγκριση & Top/Bottom (χωρίς scatter) -->
+    <section class="card" style="margin-top:14px">
+      <h3 style="margin:0 0 10px 0;font-weight:600">Statistics</h3>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-title">Country comparison (Score)</div>
+          <canvas id="cmpChart" height="120"></canvas>
+        </div>
+        <div class="stat-card">
+          <div class="stat-title">Top / Bottom</div>
+          <div id="rankTable" class="rank-table"></div>
+        </div>
+      </div>
+    </section>
   </div>
 
 <script>
-/* ---------- Δεδομένα (mock) ---------- */
-var DB=[
- {country:'Greece',qol:74,aqi:88},{country:'Italy',qol:76,aqi:95},{country:'Spain',qol:78,aqi:70},
- {country:'Portugal',qol:79,aqi:60},{country:'France',qol:82,aqi:65},{country:'Germany',qol:83,aqi:58},
- {country:'Netherlands',qol:85,aqi:62},{country:'United Kingdom',qol:84,aqi:63},{country:'Sweden',qol:86,aqi:45},
- {country:'Norway',qol:87,aqi:42},{country:'Finland',qol:87,aqi:40},{country:'Denmark',qol:86,aqi:48},
- {country:'Poland',qol:71,aqi:120},{country:'Czechia',qol:75,aqi:95},{country:'Austria',qol:85,aqi:55},
- {country:'Switzerland',qol:88,aqi:38},{country:'United States',qol:86,aqi:68},{country:'Canada',qol:86,aqi:50},
- {country:'Japan',qol:85,aqi:63},{country:'Australia',qol:85,aqi:52}
-];
+/* ---------- ISO2 codes ---------- */
+const ISO2 = {
+ 'Greece':'GR','Italy':'IT','Spain':'ES','Portugal':'PT','France':'FR','Germany':'DE','Netherlands':'NL',
+ 'United Kingdom':'GB','Sweden':'SE','Norway':'NO','Finland':'FI','Denmark':'DK','Poland':'PL','Czechia':'CZ',
+ 'Austria':'AT','Switzerland':'CH','United States':'US','Canada':'CA','Japan':'JP','Australia':'AU'
+};
 
-/* ---------- Υπολογισμός μίας τιμής ---------- */
-var W=0.4;
-function score(qol, aqi){
-  var penalty=Math.max(0,Math.min(1,(aqi||0)/300));
-  return Math.round((1 - W*penalty) * (qol||0));
+/* ---------- PM2.5 -> AQI ---------- */
+function pm25toAQI(c){
+  const brk = [
+    {Cl:0,Ch:12, Il:0, Ih:50},{Cl:12.1,Ch:35.4, Il:51, Ih:100},{Cl:35.5,Ch:55.4, Il:101, Ih:150},
+    {Cl:55.5,Ch:150.4, Il:151, Ih:200},{Cl:150.5,Ch:250.4, Il:201, Ih:300},{Cl:250.5,Ch:350.4, Il:301, Ih:400},
+    {Cl:350.5,Ch:500.4, Il:401, Ih:500}
+  ];
+  for(const b of brk){ if(c>=b.Cl && c<=b.Ch){ return Math.round((b.Ih-b.Il)/(b.Ch-b.Cl)*(c-b.Cl)+b.Il);} }
+  return 500;
 }
-function get(name){ for(var i=0;i<DB.length;i++) if(DB[i].country===name) return DB[i]; return null; }
-function rank(name){
-  var arr=DB.map(function(c){return{name:c.country,s:score(c.qol,c.aqi)};}).sort(function(a,b){return b.s-a.s;});
-  for(var i=0;i<arr.length;i++) if(arr[i].name===name) return {rank:i+1, of:arr.length};
-  return {rank:null,of:arr.length};
+
+/* ---------- Free APIs ---------- */
+async function fetchQoL(iso2){
+  try{
+    const url=`https://api.worldbank.org/v2/country/${iso2}/indicator/SP.DYN.LE00.IN?format=json&per_page=5`;
+    const res=await fetch(url); const data=await res.json();
+    const arr=(data&&data[1])||[]; const first=arr.find(x=>x.value!=null);
+    const life=first?Number(first.value):75; const pct=Math.max(0,Math.min(1,(life-50)/(85-50)));
+    return Math.round(pct*100);
+  }catch(e){ console.warn('QoL fail', iso2, e); return 75; }
 }
-function flagFromAQI(aqi){ return aqi<=50?'Καλός':'Όχι καλός'; }
-function faceFromScore(s){ if(s>=80) return '😄'; if(s>=60) return '🙂'; if(s>=40) return '😐'; return '😕'; }
-function getVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
-function colorForScore(s){ return s>=80 ? getVar('--good') : (s>=60 ? '#fbbf24' : getVar('--bad')); }
+async function fetchAQI(iso2){
+  try{
+    const url=`https://api.openaq.org/v3/measurements?country=${iso2}&parameter=pm25&limit=120&order_by=datetime&sort=desc`;
+    const res=await fetch(url); const data=await res.json(); const rows=(data&&data.results)||[];
+    const values=rows.map(r=>Number(r.value)).filter(Number.isFinite); const pm=values.length?values.reduce((a,b)=>a+b,0)/values.length:20;
+    return pm25toAQI(pm);
+  }catch(e){ console.warn('AQI fail', iso2, e); return 80; }
+}
 
-/* ---------- Theme (visual toggle) ---------- */
-var theme=document.getElementById('theme');
-function setTheme(mode){ document.documentElement.setAttribute('data-theme',mode); theme.checked=(mode==='dark'); }
-setTheme('light'); theme.addEventListener('change', ()=> setTheme(theme.checked?'light':'light')); // κρατάμε τη dark παλέτα ήδη
+/* ---------- Scoring & helpers ---------- */
+const W=0.4;
+function makeScore(qol,aqi){ const pen=Math.max(0,Math.min(1,(aqi||0)/300)); return Math.round((1-W*pen)*(qol||0)); }
+function faceFromScore(s){return s>=80?'😄':s>=60?'🙂':s>=40?'😐':'😕';}
+function colorForScore(s){const cs=getComputedStyle(document.documentElement);
+  return s>=80?cs.getPropertyValue('--good').trim():s>=60?cs.getPropertyValue('--mid').trim():cs.getPropertyValue('--bad').trim();}
+function clamp(x,a,b){return Math.min(b,Math.max(a,x));}
+function scaledColor(g){const r=Math.round(191*(1-g)+34*g),h=Math.round(28*(1-g)+197*g),b=Math.round(28*(1-g)+94*g);return{border:`rgba(${r},${h},${b},0.95)`,tint:`rgba(${r},${h},${b},0.18)`};}
+function paintBox(id,g){const el=document.getElementById(id); if(!el)return; const c=scaledColor(g);
+  el.style.borderColor=c.border; el.style.background=`linear-gradient(160deg, ${c.tint}, rgba(16,23,42,.6))`; el.style.boxShadow=`0 0 0 1px ${c.tint} inset`;
+  const svg=el.querySelector('svg'); if(svg) svg.style.stroke=c.border; }
+function goodFromAQI(a){return clamp(1-(a||0)/150,0,1);} function goodFromQOL(q){return clamp((q||0)/100,0,1);}
+function goodFromScore(s){return clamp((s||0)/100,0,1);}
 
-/* ---------- Animations ---------- */
-function animateNumber(el,to,ms){ var start=0,t0=null; function step(ts){ if(!t0)t0=ts; var p=Math.min(1,(ts-t0)/ms); el.textContent=Math.round(start+(to-start)*p); if(p<1) requestAnimationFrame(step);} requestAnimationFrame(step); }
-function animateWidth(el,toPct,ms){ el.style.transition='width '+ms+'ms ease-in-out'; el.style.width=toPct+'%'; }
-function animateDonut(toPct){ var arc=document.getElementById('arc'); var total=578; var offset=total*(1-toPct/100); arc.style.transition='stroke-dashoffset 900ms ease-in-out, stroke 300ms'; arc.style.strokeDashoffset=String(offset); }
+/* ---------- Charts: μόνο compare bar ---------- */
+let cmpChart;
+function drawCompare(DB, selected){
+  const ctx=document.getElementById('cmpChart'); if(cmpChart) cmpChart.destroy();
+  const ranked=DB.map(c=>({...c,s:makeScore(c.qol,c.aqi)})).sort((a,b)=>b.s-a.s);
+  const selIdx=ranked.findIndex(r=>r.country===selected); const start=Math.max(0,selIdx-2);
+  const slice=ranked.slice(start, start+6);
+  cmpChart=new Chart(ctx,{type:'bar',data:{labels:slice.map(x=>x.country),datasets:[{label:'Score',data:slice.map(x=>x.s),
+    backgroundColor:slice.map(x=>x.country===selected?'rgba(34,197,94,.9)':'rgba(59,130,246,.45)'),
+    borderColor:slice.map(x=>x.country===selected?'rgba(34,197,94,1)':'rgba(59,130,246,.9)'),borderWidth:1.5,borderRadius:8}]} ,
+    options:{plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{beginAtZero:true,max:100,grid:{color:'rgba(255,255,255,.06)'}}}}});
+}
+function drawTopBottom(DB){
+  const el=document.getElementById('rankTable');
+  const ranked=DB.map(c=>({...c,s:makeScore(c.qol,c.aqi)})).sort((a,b)=>b.s-a.s);
+  const top=ranked.slice(0,3), bot=ranked.slice(-3).reverse();
+  const row=(r,g=true)=>`<div class="row"><div>${g?'🥇':'⚠️'} ${r.country}</div><div class="tag" style="border-color:${g?'#22c55e':'#ef4444'};color:#fff">${r.s}</div></div>`;
+  el.innerHTML=`<div style="margin-bottom:6px;color:var(--muted)">Better</div>${top.map(r=>row(r,1)).join('')}
+                <div style="margin:10px 0 6px;color:var(--muted)">Worse</div>${bot.map(r=>row(r,0)).join('')}`;
+}
 
-/* ---------- Main ---------- */
-var sel=document.getElementById('country'); var run=document.getElementById('run');
-run.addEventListener('click', function(){
-  var c=get(sel.value); if(!c){ alert('Δεν βρέθηκε χώρα'); return; }
-  var s=score(c.qol,c.aqi); var good=s, bad=100-s;
+/* ---------- State ---------- */
+let DB = [];
+const sel=document.getElementById('country'), btn=document.getElementById('run');
 
-  animateNumber(document.getElementById('score'), s, 900);
-  document.getElementById('face').textContent = faceFromScore(s);
+/* ---------- Update only selected country ---------- */
+async function updateSelected(){
+  const name=sel.value, iso=ISO2[name];
+  btn.disabled=true; const oldTxt=btn.textContent; btn.textContent='Loading…';
+  try{
+    const [aqi,qol]=await Promise.all([fetchAQI(iso), fetchQoL(iso)]);
+    const s=makeScore(qol,aqi);
 
-  var arc=document.getElementById('arc'); arc.setAttribute('stroke', colorForScore(s)); animateDonut(s);
+    // donut
+    document.getElementById('score').textContent=s;
+    document.getElementById('face').textContent=faceFromScore(s);
+    const arc=document.getElementById('arc'); const total=578, off=total*(1-s/100);
+    arc.style.transition='stroke-dashoffset 900ms ease-in-out, stroke 300ms';
+    arc.style.strokeDashoffset=String(off); arc.setAttribute('stroke', colorForScore(s));
 
-  animateWidth(document.getElementById('goodBar'), good, 800);
-  animateWidth(document.getElementById('badBar'), bad, 800);
-  animateNumber(document.getElementById('goodPct'), good, 900);
-  animateNumber(document.getElementById('badPct'), bad, 900);
+    // KPIs
+    document.getElementById('ico_air').textContent=`AQI ${aqi} · ${aqi<=50?'Good':'Not good'}`;
+    document.getElementById('ico_qol').textContent=`${qol}%`;
+    document.getElementById('ico_rank').textContent='—';
+    document.getElementById('ico_flag').textContent=s>=60?'Good overall':'Needs Work';
 
-  document.getElementById('ico_air').textContent = 'AQI '+c.aqi+' · '+flagFromAQI(c.aqi);
-  document.getElementById('ico_qol').textContent = c.qol+'%';
-  var r=rank(c.country); document.getElementById('ico_rank').textContent = r.rank+'/'+r.of;
-  document.getElementById('ico_flag').textContent = s>=60 ? 'Καλό συνολικά' : 'Θέλει βελτίωση';
-});
-run.click();
+    paintBox('kpi_air', goodFromAQI(aqi));
+    paintBox('kpi_qol', goodFromQOL(qol));
+    paintBox('kpi_rank', goodFromScore(s)); // προσωρινά
+    paintBox('kpi_flag', goodFromScore(s));
+
+    if(DB.length){
+      const r = rankInDB(name);
+      document.getElementById('ico_rank').textContent = `${r.rank}/${r.of}`;
+      drawCompare(DB, name);
+      drawTopBottom(DB);
+    }else{
+      if(cmpChart) cmpChart.destroy();
+      document.getElementById('rankTable').innerHTML='';
+    }
+  }finally{
+    btn.disabled=false; btn.textContent=oldTxt;
+  }
+}
+
+/* ---------- Rank helper ---------- */
+function rankInDB(name){
+  const arr=DB.map(c=>({name:c.country,s:makeScore(c.qol,c.aqi)})).sort((a,b)=>b.s-a.s);
+  const i=arr.findIndex(x=>x.name===name); return {rank:i+1, of:arr.length||1};
+}
+
+/* ---------- Background load all countries ---------- */
+async function loadAllInBackground(){
+  const names=Array.from(document.querySelectorAll('#country option')).map(o=>o.value);
+  const tmp=[];
+  for(const n of names){
+    const iso=ISO2[n];
+    try{
+      const [aqi,qol]=await Promise.all([fetchAQI(iso), fetchQoL(iso)]);
+      tmp.push({country:n, aqi, qol});
+    }catch(e){
+      tmp.push({country:n, aqi:80, qol:75});
+    }
+    await new Promise(r=>setTimeout(r,150));
+  }
+  DB=tmp;
+  const current=sel.value;
+  if(current){
+    const r=rankInDB(current);
+    document.getElementById('ico_rank').textContent=`${r.rank}/${r.of}`;
+    drawCompare(DB, current);
+    drawTopBottom(DB);
+  }
+}
+
+/* ---------- Events ---------- */
+btn.addEventListener('click', updateSelected);
+updateSelected();      // immediate for selected
+loadAllInBackground(); // stats in background
 </script>
 </body>
 </html>
