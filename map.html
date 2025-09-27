@@ -61,7 +61,7 @@
   </div>
   
   <!-- Year/Date controls (static CSVs) -->
-  <div class="panel" style="top:58px; gap:8px;">
+  <div class="panel" style="top:70px; gap:8px;">
     <label style="display:flex;align-items:center;gap:6px">
       Year:
       <select id="yearSel"></select>
@@ -121,7 +121,7 @@
     // ====== Configure CSVs ======
     // history covers real years (e.g., 2020–2024); prediction covers the future (e.g., 2025)
     const DATASETS = [
-      { key: 'history',    url: 'no2_temp_data.csv',    prediction: false },
+      { key: 'history',    url: 'no2_merged_time_lat_lon.csv',    prediction: false },
       { key: 'prediction', url: 'no2_prediction.csv',   prediction: true  }
     ];
 
