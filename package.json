@@ -1,26 +1,14 @@
 {
   "name": "nasa-space-apps-2025",
   "version": "1.0.0",
-  "description": "",
+  "type": "module",
   "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/digkioan/Nasa-Space-Apps-2025.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/digkioan/Nasa-Space-Apps-2025/issues"
-  },
-  "homepage": "https://github.com/digkioan/Nasa-Space-Apps-2025#readme",
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",
-    "express": "^5.1.0"
+    "express": "^4.19.2"
   }
 }
