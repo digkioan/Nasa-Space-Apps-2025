@@ -79,6 +79,9 @@
 
   <!-- Μικρό header χωρίς auto-rotate -->
   <div class="panel">
+    <a href="start.html" style="text-decoration:none; color:inherit; display:flex; align-items:center; gap:6px;">
+      <span>← Back</span>
+    </a>
     <span>3D Globe</span>
   </div>
 
@@ -227,7 +230,7 @@
     // Start over Greece
     wwd.navigator.lookAtLocation.latitude = 37.9838;
     wwd.navigator.lookAtLocation.longitude = 23.7275;
-    wwd.navigator.range = 9e5; // ~900 km
+    wwd.navigator.range = 15e6; // ~15,000 km from surface for global view
     wwd.redraw();
 
     // Double-click → ask AI about lat/lon (in English)
@@ -498,7 +501,7 @@
   (function flyToGreece(){ if(!wwd) return;
     wwd.navigator.lookAtLocation.latitude=39.0;
     wwd.navigator.lookAtLocation.longitude=23.5;
-    wwd.navigator.range=8.5e5; wwd.redraw();
+    wwd.navigator.range=15e6; wwd.redraw();
   })();
 
   loadAllDatasets();
