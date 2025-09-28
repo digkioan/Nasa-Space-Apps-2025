@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Start</title>
+<style>
+  :root{
+    --bg:#000; --text:#fff;
+    --btn-bd:#ffffff; --btn-bg:rgba(0,0,0,.55);
+    --btn-w:260px; --btn-h:70px; --btn-radius:22px; --btn-font:22px; --btn-scale:.6;
+    --earth-tex:url("https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg");
+    --moon-tex:url("moon.gif");
+  }
+
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;overflow:hidden}
+  .scene{position:relative;width:100%;height:100%}
+
+  /* Stars */
+  #stars{position:absolute;inset:0;z-index:0;background:#000;display:block}
+
+  /* Moon (hide/show only) */
+  .moon{
+    position:absolute; right:6%; top:7%; z-index:5;
+    width:clamp(150px, 14vw, 260px); aspect-ratio:1; border-radius:50%;
+    background: var(--moon-tex) center/cover no-repeat,
+                radial-gradient(120% 120% at 45% 38%, #f4f7fb 0%, #e7ecf3 46%, #cfd6df 70%, #a8b1bc 92%);
+    -webkit-mask-image: radial-gradient(circle, #000 69%, transparent 70%);
+            mask-image: radial-gradient(circle, #000 69%, transparent 70%);
+    box-shadow:0 0 26px rgba(255,255,255,.25), 0 0 120px rgba(255,255,255,.12);
+    transition:opacity .25s ease, transform .25s ease;
+  }
+  .moon.hidden{ opacity:0; pointer-events:none; transform:scale(.96) }
+
+  /* Earth */
+  .globe-wrap{position:absolute; inset:0; display:grid; place-items:center; z-index:2; pointer-events:none}
+  .globe{
+    width:min(70vmin,560px); aspect-ratio:1; border-radius:50%;
+    background:var(--earth-tex) 0% 50% / 200% 100% repeat-x;
+    box-shadow:0 0 60px rgba(0,150,255,.08), 0 0 22px rgba(0,0,0,.6) inset;
+    animation:spin 300s linear infinite;
+    overflow:hidden; filter:drop-shadow(0 0 26px rgba(13,43,70,.55));
+    position:relative;
+  }
+  .globe::before{
+    content:""; position:absolute; inset:0; border-radius:50%;
+    background:
+      radial-gradient(130% 130% at 32% 28%, rgba(255,255,255,.16) 0, rgba(255,255,255,.05) 35%, transparent 55%),
+      radial-gradient(100% 100% at 70% 70%, rgba(0,0,0,.45) 0, rgba(0,0,0,.6) 55%, rgba(0,0,0,.75) 85%);
+  }
+  .globe::after{
+    content:""; position:absolute; inset:-2%; border-radius:50%;
+    background:radial-gradient(100% 100% at 40% 30%, rgba(255,255,255,.08) 0, transparent 55%);
+    mix-blend-mode:screen; animation:clouds 14s ease-in-out infinite alternate;
+  }
+  @keyframes spin{from{background-position-x:0%}to{background-position-x:100%}}
+  @keyframes clouds{from{transform:translateX(0)}to{transform:translateX(8px)}}
+
+  /* Metallic labels (buttons + signature) */
+  .metal{
+    background:linear-gradient(180deg,#f4f7fa 0%,#fff 16%,#cfd7df 38%,#7a838c 55%,#c7d0d8 76%,#fff 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    text-shadow:0 1px 0 rgba(255,255,255,.55), 0 -1px 0 rgba(0,0,0,.35), 0 6px 12px rgba(0,0,0,.35);
+  }
+  .sig{position:absolute; right:19%; top:10.5%; z-index:6; font-size:34px; font-weight:800; letter-spacing:.04em; opacity:.92}
+.temp{position:absolute; font-family: 'Courier New', monospace;right:36.5%; top:5%; z-index:6; font-size:64px; font-weight:800; letter-spacing:.04em; opacity:.92}
+
+  /* Title (centered over Earth) */
+  .title{
+    position:absolute; inset:0; display:grid; place-items:center; z-index:4; pointer-events:none;
+    font-weight:800;
+    font-size:clamp(36px, 8vmin, 120px);
+    color:rgba(0,0,0,.85);           /* σκέτο μαύρο όπως στο παράδειγμα */
+    text-shadow:0 2px 8px rgba(0,0,0,.25);
+    letter-spacing:.02em;
+  }
+
+  /* Buttons */
+  .menu{position:absolute; left:50%; bottom:5.5vh; transform:translateX(-50%); display:flex; gap:20px; z-index:7}
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center;
+    min-width:calc(var(--btn-w)*var(--btn-scale));
+    height:calc(var(--btn-h)*var(--btn-scale));
+    padding:0 18px; border:2px solid var(--btn-bd); background:var(--btn-bg);
+    border-radius:calc(var(--btn-radius)*var(--btn-scale));
+    text-decoration:none; color:var(--text); letter-spacing:.12em; font-weight:800;
+    font-size:calc(var(--btn-font)*var(--btn-scale)); transition:none; backdrop-filter:blur(2px);
+  }
+  .btn:hover,.btn:active{background:var(--btn-bg);border-color:var(--btn-bd)}
+
+  /* ABOUT panels */
+  .about{
+    position:absolute; top:10%; bottom:12%;
+    width:min(34vw,560px); z-index:6; color:#fff; line-height:1.45;
+    font-size:clamp(14px,1.3vw,18px); padding:0 22px;
+    overflow:auto; pointer-events:none; opacity:0; transform:translateX(-120%);
+    transition:transform .28s ease, opacity .28s ease;
+  }
+  .about::-webkit-scrollbar{display:none}
+  .about{scrollbar-width:none; -ms-overflow-style:none}
+  .about b{font-weight:800}
+  .about ul{margin:.4em 0 .8em 1.2em}
+  .about.show{ pointer-events:auto; opacity:1; transform:translateX(0) }
+  .about.right{left:auto; right:-5%; transform:translateX(120%); top:20%}
+  .about.right.show{ transform:translateX(0) }
+
+  @media (max-width:900px){ .about{width:44vw} }
+  @media (max-width:700px){
+    .about{width:86vw; left:7%; right:7%; top:50%}
+    .about.right{right:7%}
+  }
+</style>
+</head>
+<body>
+  <div class="scene">
+    <canvas id="stars"></canvas>
+
+    <div id="moon" class="moon" aria-hidden="true"></div>
+
+    <div class="globe-wrap">
+      <div class="globe" aria-label="Earth, rotating"></div>
+    </div>
+
+    <!-- Κεντρικός τίτλος -->
+    <div class="temp metal">AirQuaLife</div>
+
+    <div class="sig metal">by chillers</div>
+
+    <!-- ABOUT text -->
+    <aside id="aboutL" class="about">
+      <h3 style="margin:.2em 0 0">About the Challenge</h3>
+      <p><b>Αποστολή.</b> Προβλέπουμε τοπική ποιότητα αέρα από TEMPO + επίγειους αισθητήρες + μετεωρολογία…</p>
+      <ul>
+        <li><b>Ενοποίηση πηγών:</b> TEMPO, αισθητήρες, καιρός σε ενιαίο ταμπλό.</li>
+        <li><b>Τώρα & Πρόγνωση:</b> Nowcast/πρόγνωση 24–72h για PM2.5/PM10, O₃, NO₂.</li>
+        <li><b>Επαλήθευση:</b> σύγκριση δορυφόρου–εδάφους (bias, RMSE, R) σε πραγματικό χρόνο.</li>
+      </ul>
+      <p><b>Ειδοποιήσεις & Προτιμήσεις.</b> Geo-alerts, thresholds ανά χρήστη, quiet hours, γλώσσα/μονάδες.</p>
+    </aside>
+
+    <aside id="aboutR" class="about right">
+      <h3 style="margin:.2em 0 0">Δεδομένα & Roadmap</h3>
+      <ul>
+        <li><b>NASA TEMPO:</b> O₃/NO₂ (QA, cloud mask)</li>
+        <li><b>OpenAQ:</b> ωριαίες PM₂.₅/PM₁₀/O₃/NO₂</li>
+        <li><b>Μετεωρολογία:</b> άνεμος, RH, PBLH, βροχή (NWP/ERA5 κ.ά.)</li>
+      </ul>
+      <p><b>Roadmap.</b> Wildfire smoke layers, bias-correction, στοχευμένες ειδοποιήσεις.</p>
+    </aside>
+
+    <nav class="menu" aria-label="Main">
+      <a class="btn" href="map.html"><span class="metal">MAP</span></a>
+      <a class="btn" href="client.html"><span class="metal">STATISTICS</span></a>
+      <button id="aboutBtn" class="btn" type="button"><span class="metal">ABOUT</span></button>
+    </nav>
+  </div>
+
+<script>
+/* Stars with gentle twinkle */
+(function(){
+  const c=document.getElementById('stars'), ctx=c.getContext('2d');
+  let W,H,stars; const R=(a,b)=>Math.random()*(b-a)+a;
+  function resize(){
+    W=c.width=innerWidth; H=c.height=innerHeight;
+    const n=Math.min(800, Math.floor((W*H)/3500));
+    stars=Array.from({length:n},()=>({x:Math.random()*W,y:Math.random()*H,r:R(0.4,1.4),a:R(0.4,0.9),s:R(0.002,0.008),p:Math.random()*Math.PI*2}));
+  }
+  function draw(){
+    ctx.clearRect(0,0,W,H); ctx.fillStyle="#000"; ctx.fillRect(0,0,W,H);
+    ctx.save();
+    for(const s of stars){
+      const tw=s.a+Math.sin(s.p)*0.25; ctx.globalAlpha=Math.max(0.15,Math.min(1,tw));
+      ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2); ctx.fillStyle="#ffffff"; ctx.fill(); s.p+=s.s;
+    }
+    ctx.restore(); requestAnimationFrame(draw);
+  }
+  addEventListener('resize',resize); resize(); draw();
+})();
+
+/* ABOUT toggle: show panels, hide/restore moon (δεν αλλάζει η Γη) */
+(function(){
+  const btn = document.getElementById('aboutBtn');
+  const L = document.getElementById('aboutL');
+  const R = document.getElementById('aboutR');
+  const moon = document.getElementById('moon');
+  let open = false;
+
+  btn.addEventListener('click', () => {
+    open = !open;
+    L.classList.toggle('show', open);
+    R.classList.toggle('show', open);
+    moon.classList.toggle('hidden', open);
+  });
+})();
+</script>
+</body>
+</html>
