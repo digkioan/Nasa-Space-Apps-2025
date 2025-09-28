@@ -32,7 +32,8 @@
   .dot{width:12px;height:12px;border-radius:50%;background:var(--primary);box-shadow:0 0 0 6px rgba(59,130,246,.12)}
   h1{margin:0;font-size:1.6rem} .muted{color:var(--muted);font-size:14px}
   .card{background:var(--card);backdrop-filter:blur(8px);border:1px solid var(--border);border-radius:18px;padding:16px;box-shadow:var(--shadow)}
-  .row{display:flex;gap:14px;flex-wrap:wrap} .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .row{display:flex;gap:14px;flex-wrap:wrap;align-items:stretch}  /* <- stretch για ίδιο ύψος */
+  .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   /* Select */
   select{
     border:1px solid var(--select-border); background:var(--select-bg); color:var(--select-text);
@@ -54,8 +55,27 @@
   @keyframes floaty{0%{transform:translateY(0)}50%{transform:translateY(-4px)}100%{transform:translateY(0)}}
 
   /* KPIs */
-  .icons{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}
-  .ico{display:flex;gap:10px;align-items:center;border:1px solid var(--border);border-radius:14px;padding:14px;background:rgba(16,23,42,.6);transition:background .25s,border-color .25s,box-shadow .25s}
+  /* ΝΕΟ: grid που γεμίζει όλο το ύψος (2×2) */
+  .kpi-grid{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    grid-auto-rows:1fr;          /* ίσο ύψος στα κελιά */
+    gap:10px;
+    width:100%;
+    height:100%;                 /* γεμίζει την κάρτα */
+    align-content:stretch;
+  }
+  .ico{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:14px;
+    background:rgba(16,23,42,.6);
+    transition:background .25s,border-color .25s,box-shadow .25s;
+    height:100%;                 /* γεμίζει το κελί */
+  }
   .ico svg{width:24px;height:24px}
 
   /* Stats (χωρίς scatter) */
@@ -81,6 +101,7 @@
 
     <div class="muted" style="margin-top:6px">
       Pick a country and press Compute. If an API is slow, safe fallbacks are used temporarily.
+    </div>
 
     <div class="card" style="margin-top:12px">
       <div class="controls">
@@ -96,6 +117,7 @@
     </div>
 
     <div class="row" style="margin-top:12px">
+      <!-- Αριστερά: Donut -->
       <div class="card" style="flex:1 1 460px;display:flex;gap:18px;align-items:center;justify-content:center;min-width:320px">
         <div class="meter">
           <svg width="220" height="220">
@@ -110,8 +132,9 @@
         </div>
       </div>
 
-      <div class="card" style="flex:1 1 520px;min-width:320px">
-        <div class="icons">
+      <!-- Δεξιά: KPIs σε grid 2×2 που γεμίζει το ύψος -->
+      <div class="card" style="flex:1 1 520px;min-width:320px;display:flex">
+        <div class="kpi-grid" style="flex:1">
           <div class="ico" id="kpi_air">
             <svg viewBox="0 0 24 24" fill="none" stroke="var(--good)" stroke-width="2"><path d="M5 21c8 0 14-6 14-14V3h-4C7 3 3 7 3 13v8h2z"/><path d="M9 15l6-6"/></svg>
             <div><div class="muted">Air</div><b id="ico_air">—</b></div>
