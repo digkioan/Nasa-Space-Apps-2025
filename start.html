@@ -37,7 +37,9 @@
             mask-image: radial-gradient(circle, #000 69%, transparent 70%);
     box-shadow:0 0 26px rgba(255,255,255,.25), 0 0 120px rgba(255,255,255,.12);
     image-rendering:auto;
+    transition:opacity .25s ease, transform .25s ease;
   }
+  .moon.hidden{ opacity:0; pointer-events:none; transform:scale(.96) }
   .moon::before{
     content:""; position:absolute; inset:0; border-radius:50%;
     background:
@@ -98,27 +100,83 @@
 
   .sig{position:absolute; right:19%; top:10.5%; z-index:5; font-size:34px; font-weight:800; letter-spacing:.04em; opacity:.92}
 
+  /* Main title */
+  .title{
+    position:absolute; left:53%; top:8%; z-index:6; 
+    transform:translateX(-50%); /* Perfect centering */
+    font-family: 'Courier New', monospace;
+    font-size:clamp(48px, 8vw, 32px); font-weight:300; letter-spacing:.04em; opacity:.95;
+  }
+
   @media (max-width:780px){
     .menu{flex-direction:column; gap:12px; bottom:6.5vh}
     .btn{min-width:62vw}
     .sig{right:25%; top:12%; font-size:22px}
+    .title{top:6%; font-size:clamp(36px, 10vw, 48px)}
+  }
+
+  /* ABOUT panels */
+  .about{
+    position:absolute; top:10%; bottom:12%;
+    width:min(34vw,560px); z-index:6; color:#fff; line-height:1.45;
+    font-size:clamp(14px,1.3vw,18px); padding:0 22px;
+    overflow:auto; pointer-events:none; opacity:0; transform:translateX(-120%);
+    transition:transform .28s ease, opacity .28s ease;
+  }
+  .about::-webkit-scrollbar{display:none}
+  .about{scrollbar-width:none; -ms-overflow-style:none}
+  .about b{font-weight:800}
+  .about ul{margin:.4em 0 .8em 1.2em}
+  .about.show{ pointer-events:auto; opacity:1; transform:translateX(0) }
+  .about.right{left:auto; right:-5%; transform:translateX(120%); top:20%}
+  .about.right.show{ transform:translateX(0) }
+
+  @media (max-width:900px){ .about{width:44vw} }
+  @media (max-width:700px){
+    .about{width:86vw; left:7%; right:7%; top:50%}
+    .about.right{right:7%}
   }
 </style>
 </head>
 <body>
+
   <div class="scene">
     <canvas id="stars"></canvas>
 
-    <div class="moon" aria-hidden="true"></div>
+    <div id="moon" class="moon" aria-hidden="true"></div>
 
     <div class="globe-wrap"><div class="globe" aria-label="Earth, rotating"></div></div>
 
+    <div class="title sig">AirQuaLife</div>
+
     <div class="sig">by chillers</div>
+
+    <!-- ABOUT text panels -->
+    <aside id="aboutL" class="about">
+      <h3 style="margin:.2em 0 0">About the Challenge</h3>
+      <p><b>Αποστολή.</b> Προβλέπουμε τοπική ποιότητα αέρα από TEMPO + επίγειους αισθητήρες + μετεωρολογία…</p>
+      <ul>
+        <li><b>Ενοποίηση πηγών:</b> TEMPO, αισθητήρες, καιρός σε ενιαίο ταμπλό.</li>
+        <li><b>Τώρα & Πρόγνωση:</b> Nowcast/πρόγνωση 24–72h για PM2.5/PM10, O₃, NO₂.</li>
+        <li><b>Επαλήθευση:</b> σύγκριση δορυφόρου–εδάφους (bias, RMSE, R) σε πραγματικό χρόνο.</li>
+      </ul>
+      <p><b>Ειδοποιήσεις & Προτιμήσεις.</b> Geo-alerts, thresholds ανά χρήστη, quiet hours, γλώσσα/μονάδες.</p>
+    </aside>
+
+    <aside id="aboutR" class="about right">
+      <h3 style="margin:.2em 0 0">Δεδομένα & Roadmap</h3>
+      <ul>
+        <li><b>NASA TEMPO:</b> O₃/NO₂ (QA, cloud mask)</li>
+        <li><b>OpenAQ:</b> ωριαίες PM₂.₅/PM₁₀/O₃/NO₂</li>
+        <li><b>Μετεωρολογία:</b> άνεμος, RH, PBLH, βροχή (NWP/ERA5 κ.ά.)</li>
+      </ul>
+      <p><b>Roadmap.</b> Wildfire smoke layers, bias-correction, στοχευμένες ειδοποιήσεις.</p>
+    </aside>
 
     <nav class="menu" aria-label="Main">
       <a class="btn" href="map.html"><span>MAP</span></a>
       <a class="btn" href="client.html"><span>STATISTICS</span></a>
-      <a class="btn" href="about.html"><span>ABOUT</span></a>
+      <button id="aboutBtn" class="btn" type="button"><span>ABOUT</span></button>
     </nav>
   </div>
 
@@ -142,6 +200,22 @@
     ctx.restore(); requestAnimationFrame(draw);
   }
   addEventListener('resize',resize); resize(); draw();
+})();
+
+/* ABOUT toggle: show panels, hide/restore moon */
+(function(){
+  const btn = document.getElementById('aboutBtn');
+  const L = document.getElementById('aboutL');
+  const R = document.getElementById('aboutR');
+  const moon = document.getElementById('moon');
+  let open = false;
+
+  btn.addEventListener('click', () => {
+    open = !open;
+    L.classList.toggle('show', open);
+    R.classList.toggle('show', open);
+    moon.classList.toggle('hidden', open);
+  });
 })();
 </script>
 </body>
