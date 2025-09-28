@@ -20,6 +20,11 @@
     .panel button { padding:6px 10px; border-radius:8px; border:1px solid rgba(255,255,255,.25); background:rgba(255,255,255,.12); color:#fff; cursor:pointer }
     .panel button:hover { background:rgba(255,255,255,.2) }
 
+    /* Element selection buttons */
+    .element-btn { padding:6px 12px; border-radius:8px; border:1px solid rgba(255,255,255,.25); background:rgba(255,255,255,.12); color:#fff; cursor:pointer; transition:all 0.2s ease }
+    .element-btn:hover { background:rgba(255,255,255,.2) }
+    .element-btn.active { background:rgba(59,130,246,.6); border-color:rgba(59,130,246,.8); color:#fff }
+
     .joystick {
       position:absolute; left:16px; bottom:16px; width:120px; height:120px; border-radius:50%;
       background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.15); backdrop-filter:blur(4px);
@@ -100,6 +105,16 @@
     <canvas id="legend" width="220" height="14" style="display:block;border-radius:6px"></canvas>
     <span id="legMin" style="opacity:.75;font-size:12px">min</span>
     <span id="legMax" style="opacity:.75;font-size:12px">max</span>
+  </div>
+
+  <!-- Element Selection -->
+  <div class="panel" style="top:182px; gap:8px; align-items:center">
+    <span>Element:</span>
+    <button id="elementO3" class="element-btn active" data-element="o3">O₃</button>
+    <button id="elementNO2" class="element-btn" data-element="no2">NO₂</button>
+    <button id="elementSO2" class="element-btn" data-element="so2">SO₂</button>
+    <button id="elementCO" class="element-btn" data-element="co">CO</button>
+    <span id="elementStatus" style="opacity:.75; font-size:12px"></span>
   </div>
 
   <!-- Units (top-right) -->
@@ -225,10 +240,39 @@
   const wwd = initWorldWind();
 
   /************ 3) Δεδομένα + Overlay ************/
-  const DATASETS = [
-    { key: 'history',    url: 'o3_merged_unified.csv', prediction: false },
-    { key: 'prediction', url: 'o3_prediction.csv',     prediction: true  }
-  ];
+  // Multiple elements configuration
+  const ELEMENTS = {
+    o3: {
+      name: 'O₃ (Ozone)',
+      datasets: [
+        { key: 'history',    url: 'o3_merged_unified.csv', prediction: false },
+        { key: 'prediction', url: 'o3_prediction.csv',     prediction: true  }
+      ]
+    },
+    no2: {
+      name: 'NO₂ (Nitrogen Dioxide)', 
+      datasets: [
+        { key: 'history',    url: 'no2_merged_time_lat_lon.csv', prediction: false },
+        { key: 'prediction', url: 'no2_prediction.csv',           prediction: true  }
+      ]
+    },
+    so2: {
+      name: 'SO₂ (Sulfur Dioxide)',
+      datasets: [
+        { key: 'history',    url: 'so2_unified.csv', prediction: false },
+        { key: 'prediction', url: 'so2_prediction.csv',     prediction: true  }
+      ]
+    },
+    co: {
+      name: 'CO (Carbon Monoxide)',
+      datasets: [
+        { key: 'history',    url: 'co_unified.csv', prediction: false },
+        { key: 'prediction', url: 'co_prediction.csv',     prediction: true  }
+      ]
+    }
+  };
+
+  let currentElement = 'o3'; // default element
   const OVERLAY_ALPHA = 0.55;
   const YEARS = new Map(); // year -> { label, byDate(Map), dates[], minMaxByDate(Map) }
   let currentOverlayLayer = null;
@@ -381,9 +425,16 @@
 
   async function loadAllDatasets(){
     const yearSel=document.getElementById('yearSel');
-    document.getElementById('status').textContent='Loading datasets…';
+    const elementInfo = ELEMENTS[currentElement];
+    document.getElementById('status').textContent=`Loading ${elementInfo.name} datasets…`;
+    document.getElementById('elementStatus').textContent=elementInfo.name;
 
-    for(const def of DATASETS){ try{ await loadDataset(def); }catch(e){ console.error(e); } }
+    // Clear existing data
+    YEARS.clear();
+
+    for(const def of elementInfo.datasets){ 
+      try{ await loadDataset(def); }catch(e){ console.error(e); } 
+    }
 
     const years=Array.from(YEARS.keys()).sort((a,b)=>a-b);
     yearSel.innerHTML='';
@@ -432,6 +483,33 @@
   })();
 
   loadAllDatasets();
+
+  /************ 3.5) Element Selection ************/
+  function switchElement(elementKey) {
+    if (currentElement === elementKey) return; // no change needed
+    
+    // Stop auto-play during element switch
+    stopAuto();
+    removeCurrentLayer();
+    
+    // Update active button styling
+    document.querySelectorAll('.element-btn').forEach(btn => {
+      btn.classList.remove('active');
+    });
+    document.querySelector(`[data-element="${elementKey}"]`).classList.add('active');
+    
+    // Switch element and reload data
+    currentElement = elementKey;
+    loadAllDatasets();
+  }
+
+  // Add event listeners for element buttons
+  document.querySelectorAll('.element-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const element = btn.getAttribute('data-element');
+      switchElement(element);
+    });
+  });
 
   /************ 4) Auto-Play ημερομηνιών ************/
   const AUTO_MS = 800;                 // ταχύτητα animation (ms)
