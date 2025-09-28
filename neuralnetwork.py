@@ -3,8 +3,8 @@ import numpy as np, pandas as pd, tensorflow as tf
 from tensorflow import keras
 from datetime import date, timedelta
 
-CSV_HISTORY = "o3_merged_unified.csv" #vale edw auto p thes 
-OUTPUT_CSV  = "o3_prediction.csv"
+CSV_HISTORY = "so2_unified.csv" #vale edw auto p thes
+OUTPUT_CSV  = "so2_prediction.csv"
 RANDOM_SEED = 42
 
 # Prediction window (inclusive)
