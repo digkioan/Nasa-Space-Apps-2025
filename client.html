@@ -17,7 +17,6 @@
   }
   *{box-sizing:border-box} html,body{height:100%}
   body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;color:var(--text);background:var(--bg);overflow-x:hidden}
-  /* Animated background GIF */
   .bg-windy{position:fixed; inset:0; z-index:0; pointer-events:none;
     background:url("gif_background.gif") center/var(--bg-zoom) no-repeat fixed;
     filter:brightness(var(--bg-brightness)) saturate(1.15) contrast(1.05);
@@ -32,9 +31,8 @@
   .dot{width:12px;height:12px;border-radius:50%;background:var(--primary);box-shadow:0 0 0 6px rgba(59,130,246,.12)}
   h1{margin:0;font-size:1.6rem} .muted{color:var(--muted);font-size:14px}
   .card{background:var(--card);backdrop-filter:blur(8px);border:1px solid var(--border);border-radius:18px;padding:16px;box-shadow:var(--shadow)}
-  .row{display:flex;gap:14px;flex-wrap:wrap;align-items:stretch}  /* <- stretch για ίδιο ύψος */
+
   .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-  /* Select */
   select{
     border:1px solid var(--select-border); background:var(--select-bg); color:var(--select-text);
     border-radius:14px; padding:12px 14px; font-size:15px; -webkit-appearance:none; appearance:none;
@@ -42,11 +40,11 @@
                      linear-gradient(135deg, var(--select-text) 50%, transparent 50%);
     background-position:calc(100% - 22px) calc(50% - 3px), calc(100% - 16px) calc(50% - 3px);
     background-size:6px 6px, 6px 6px; background-repeat:no-repeat; padding-right:36px;}
-  select option{ background:var(--select-bg); color:var(--select-text); }
   .btn.primary{border:1px solid transparent;background:#3b82f6;color:#fff;border-radius:12px;padding:10px 12px;cursor:pointer}
   .btn.primary[disabled]{opacity:.7; cursor:not-allowed}
 
   /* Donut */
+  .row{display:flex;gap:14px;flex-wrap:wrap;align-items:stretch}
   .meter{position:relative;width:220px;height:220px}
   .meter svg{transform:rotate(-90deg)}
   .num{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
@@ -54,39 +52,19 @@
   .emoji{font-size:34px;margin-top:6px;animation:floaty 3s ease-in-out infinite}
   @keyframes floaty{0%{transform:translateY(0)}50%{transform:translateY(-4px)}100%{transform:translateY(0)}}
 
-  /* KPIs */
-  /* ΝΕΟ: grid που γεμίζει όλο το ύψος (2×2) */
   .kpi-grid{
-    display:grid;
-    grid-template-columns:repeat(2,minmax(0,1fr));
-    grid-auto-rows:1fr;          /* ίσο ύψος στα κελιά */
-    gap:10px;
-    width:100%;
-    height:100%;                 /* γεμίζει την κάρτα */
-    align-content:stretch;
+    display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; width:100%;
   }
-  .ico{
-    display:flex;
-    gap:10px;
-    align-items:center;
-    border:1px solid var(--border);
-    border-radius:14px;
-    padding:14px;
-    background:rgba(16,23,42,.6);
-    transition:background .25s,border-color .25s,box-shadow .25s;
-    height:100%;                 /* γεμίζει το κελί */
-  }
+  .ico{display:flex;gap:10px;align-items:center;border:1px solid var(--border);border-radius:14px;padding:14px;background:rgba(16,23,42,.6)}
   .ico svg{width:24px;height:24px}
 
-  /* Stats (χωρίς scatter) */
-  h3{font-size:1rem}
+  /* --- Statistics: 1 μεγάλη + 2 μικρές (όλες histograms) --- */
   .stats-grid{display:grid; gap:12px; grid-template-columns:repeat(2,1fr)}
-  @media (max-width:1000px){ .stats-grid{ grid-template-columns:1fr } }
-  .stat-card{background:rgba(16,23,42,.65); border:1px solid var(--border); border-radius:14px; padding:12px}
-  .stat-title{ color:var(--muted); font-size:13px; margin-bottom:8px }
-  .rank-table .row{display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px dashed rgba(255,255,255,.08)}
-  .rank-table .row:last-child{ border-bottom:0 }
-  .tag{ padding:4px 8px; border-radius:999px; font-size:12px; border:1px solid var(--border); background:rgba(255,255,255,.04) }
+  .hist-card{background:rgba(16,23,42,.65); border:1px solid var(--border); border-radius:14px; padding:12px}
+  .hist-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;color:var(--muted);font-size:13px}
+  .pill{padding:3px 8px; border-radius:999px; border:1px solid var(--border); font-size:12px; color:#cbd5e1}
+  .span-2{grid-column:1 / -1}
+  canvas{max-width:100%}
 </style>
 </head>
 <body>
@@ -132,7 +110,7 @@
         </div>
       </div>
 
-      <!-- Δεξιά: KPIs σε grid 2×2 που γεμίζει το ύψος -->
+      <!-- Δεξιά: KPIs  -->
       <div class="card" style="flex:1 1 520px;min-width:320px;display:flex">
         <div class="kpi-grid" style="flex:1">
           <div class="ico" id="kpi_air">
@@ -155,17 +133,21 @@
       </div>
     </div>
 
-    <!-- ΣΤΑΤΙΣΤΙΚΑ: Σύγκριση & Top/Bottom (χωρίς scatter) -->
+    <!-- STATISTICS: 3 HISTOGRAMS -->
     <section class="card" style="margin-top:14px">
       <h3 style="margin:0 0 10px 0;font-weight:600">Statistics</h3>
       <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-title">Country comparison (Score)</div>
-          <canvas id="cmpChart" height="120"></canvas>
+        <div class="hist-card span-2">
+          <div class="hist-title"><span>Life expectancy (years)</span><span id="lifeRank" class="pill">—</span></div>
+          <canvas id="lifeChart" height="120"></canvas>
         </div>
-        <div class="stat-card">
-          <div class="stat-title">Top / Bottom</div>
-          <div id="rankTable" class="rank-table"></div>
+        <div class="hist-card">
+          <div class="hist-title"><span>Avg house price (USD/m²)</span><span id="houseRank" class="pill">—</span></div>
+          <canvas id="houseChart" height="120"></canvas>
+        </div>
+        <div class="hist-card">
+          <div class="hist-title"><span>Avg life insurance premium (USD/yr)</span><span id="insRank" class="pill">—</span></div>
+          <canvas id="insChart" height="120"></canvas>
         </div>
       </div>
     </section>
@@ -191,61 +173,105 @@ function pm25toAQI(c){
 }
 
 /* ---------- Free APIs ---------- */
-async function fetchQoL(iso2){
+async function fetchLife(iso2){
   try{
     const url=`https://api.worldbank.org/v2/country/${iso2}/indicator/SP.DYN.LE00.IN?format=json&per_page=5`;
     const res=await fetch(url); const data=await res.json();
     const arr=(data&&data[1])||[]; const first=arr.find(x=>x.value!=null);
-    const life=first?Number(first.value):75; const pct=Math.max(0,Math.min(1,(life-50)/(85-50)));
-    return Math.round(pct*100);
-  }catch(e){ console.warn('QoL fail', iso2, e); return 75; }
+    const years=first?Number(first.value):81;
+    const pct=Math.round(Math.max(0,Math.min(1,(years-50)/(85-50)))*100);
+    return {years, pct};
+  }catch(e){ console.warn('Life fail', iso2, e); return {years:81, pct:75}; }
 }
 async function fetchAQI(iso2){
   try{
     const url=`https://api.openaq.org/v3/measurements?country=${iso2}&parameter=pm25&limit=120&order_by=datetime&sort=desc`;
     const res=await fetch(url); const data=await res.json(); const rows=(data&&data.results)||[];
-    const values=rows.map(r=>Number(r.value)).filter(Number.isFinite); const pm=values.length?values.reduce((a,b)=>a+b,0)/values.length:20;
+    const values=rows.map(r=>Number(r.value)).filter(Number.isFinite);
+    const pm=values.length?values.reduce((a,b)=>a+b,0)/values.length:20;
     return pm25toAQI(pm);
   }catch(e){ console.warn('AQI fail', iso2, e); return 80; }
 }
 
 /* ---------- Scoring & helpers ---------- */
-const W=0.4;
+const W=0.4; // AQI penalty weight
 function makeScore(qol,aqi){ const pen=Math.max(0,Math.min(1,(aqi||0)/300)); return Math.round((1-W*pen)*(qol||0)); }
 function faceFromScore(s){return s>=80?'😄':s>=60?'🙂':s>=40?'😐':'😕';}
 function colorForScore(s){const cs=getComputedStyle(document.documentElement);
   return s>=80?cs.getPropertyValue('--good').trim():s>=60?cs.getPropertyValue('--mid').trim():cs.getPropertyValue('--bad').trim();}
 function clamp(x,a,b){return Math.min(b,Math.max(a,x));}
-function scaledColor(g){const r=Math.round(191*(1-g)+34*g),h=Math.round(28*(1-g)+197*g),b=Math.round(28*(1-g)+94*g);return{border:`rgba(${r},${h},${b},0.95)`,tint:`rgba(${r},${h},${b},0.18)`};}
-function paintBox(id,g){const el=document.getElementById(id); if(!el)return; const c=scaledColor(g);
-  el.style.borderColor=c.border; el.style.background=`linear-gradient(160deg, ${c.tint}, rgba(16,23,42,.6))`; el.style.boxShadow=`0 0 0 1px ${c.tint} inset`;
-  const svg=el.querySelector('svg'); if(svg) svg.style.stroke=c.border; }
-function goodFromAQI(a){return clamp(1-(a||0)/150,0,1);} function goodFromQOL(q){return clamp((q||0)/100,0,1);}
-function goodFromScore(s){return clamp((s||0)/100,0,1);}
+function paintBox(id,g){const el=document.getElementById(id); if(!el)return; const r=Math.round(191*(1-g)+34*g),g2=Math.round(28*(1-g)+197*g),b=Math.round(28*(1-g)+94*g);
+  el.style.borderColor=`rgba(${r},${g2},${b},0.95)`; el.style.background=`linear-gradient(160deg, rgba(${r},${g2},${b},0.18), rgba(16,23,42,.6))`; el.style.boxShadow=`0 0 0 1px rgba(${r},${g2},${b},0.18) inset`; }
 
-/* ---------- Charts: μόνο compare bar ---------- */
-let cmpChart;
-function drawCompare(DB, selected){
-  const ctx=document.getElementById('cmpChart'); if(cmpChart) cmpChart.destroy();
-  const ranked=DB.map(c=>({...c,s:makeScore(c.qol,c.aqi)})).sort((a,b)=>b.s-a.s);
-  const selIdx=ranked.findIndex(r=>r.country===selected); const start=Math.max(0,selIdx-2);
-  const slice=ranked.slice(start, start+6);
-  cmpChart=new Chart(ctx,{type:'bar',data:{labels:slice.map(x=>x.country),datasets:[{label:'Score',data:slice.map(x=>x.s),
-    backgroundColor:slice.map(x=>x.country===selected?'rgba(34,197,94,.9)':'rgba(59,130,246,.45)'),
-    borderColor:slice.map(x=>x.country===selected?'rgba(34,197,94,1)':'rgba(59,130,246,.9)'),borderWidth:1.5,borderRadius:8}]} ,
-    options:{plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{beginAtZero:true,max:100,grid:{color:'rgba(255,255,255,.06)'}}}}});
+/* ---------- Static demo datasets (μπορείς να τα αλλάξεις) ---------- */
+const HOUSE_USD_M2 = {
+ 'Greece':1600,'Italy':2800,'Spain':2500,'Portugal':2200,'France':4200,'Germany':4800,'Netherlands':4500,'United Kingdom':5200,
+ 'Sweden':4300,'Norway':5500,'Finland':3900,'Denmark':5200,'Poland':2000,'Czechia':1800,'Austria':5200,'Switzerland':9700,
+ 'United States':3500,'Canada':4200,'Japan':4100,'Australia':4800
+};
+const LIFEINS_USD_YR = {
+ 'Greece':200,'Italy':220,'Spain':240,'Portugal':250,'France':260,'Germany':300,'Netherlands':280,'United Kingdom':350,
+ 'Sweden':210,'Norway':230,'Finland':220,'Denmark':240,'Poland':200,'Czechia':210,'Austria':260,'Switzerland':400,
+ 'United States':450,'Canada':380,'Japan':300,'Australia':320
+};
+
+/* ---------- Charts ---------- */
+let lifeChart, houseChart, insChart;
+
+function drawHistogram(canvasId, series, selected, opts={}){
+  const ctx = document.getElementById(canvasId);
+  const sorted=[...series].sort((a,b)=>a.value-b.value);
+  const labels=sorted.map(x=>x.country);
+  const data=sorted.map(x=>x.value);
+  const bg=sorted.map(x=>x.country===selected?'rgba(34,197,94,.9)':'rgba(59,130,246,.45)');
+  const border=sorted.map(x=>x.country===selected?'rgba(34,197,94,1)':'rgba(59,130,246,.9)');
+
+  if(opts.destroy && opts.destroy.chart) opts.destroy.chart.destroy();
+
+  // --- ΝΕΟ: “σφιχτός” άξονας Υ για να φανούν διαφορές ---
+  const useTight = !!opts.tightY;
+  const min = Math.min(...data), max = Math.max(...data);
+  const span = Math.max(0.0001, max - min);
+  const pad  = Math.max(0.2, span * 0.15);                  // ~15% περιθώριο
+  const yMin = useTight ? Math.floor((min - pad) * 10)/10 : undefined;
+  const yMax = useTight ? Math.ceil((max + pad) * 10)/10  : undefined;
+  const step = useTight ? (span <= 4 ? 0.5 : 1) : undefined;
+
+  const chart=new Chart(ctx,{
+    type:'bar',
+    data:{labels,datasets:[{data,backgroundColor:bg,borderColor:border,borderWidth:1.5,borderRadius:8}]},
+    options:{
+      plugins:{legend:{display:false}, tooltip:{callbacks:{
+        label:(c)=> opts.prefix?`${opts.prefix}${c.raw}`:c.raw
+      }}},
+      scales:{
+        x:{grid:{display:false}, ticks:{color:'#9aa6b2', maxRotation:42, minRotation:42}},
+        y:{
+          beginAtZero: !useTight,
+          min: yMin, max: yMax,
+          grid:{color:'rgba(255,255,255,.06)'},
+          ticks:{
+            color:'#9aa6b2',
+            stepSize: step,
+            callback:(v)=> opts.decimals===1 ? Number(v).toFixed(1) : v
+          }
+        }
+      }
+    }
+  });
+  return chart;
 }
-function drawTopBottom(DB){
-  const el=document.getElementById('rankTable');
-  const ranked=DB.map(c=>({...c,s:makeScore(c.qol,c.aqi)})).sort((a,b)=>b.s-a.s);
-  const top=ranked.slice(0,3), bot=ranked.slice(-3).reverse();
-  const row=(r,g=true)=>`<div class="row"><div>${g?'🥇':'⚠️'} ${r.country}</div><div class="tag" style="border-color:${g?'#22c55e':'#ef4444'};color:#fff">${r.s}</div></div>`;
-  el.innerHTML=`<div style="margin-bottom:6px;color:var(--muted)">Better</div>${top.map(r=>row(r,1)).join('')}
-                <div style="margin:10px 0 6px;color:var(--muted)">Worse</div>${bot.map(r=>row(r,0)).join('')}`;
+
+
+function rankText(series, selected, higherIsBest=true){
+  const sorted=[...series].sort((a,b)=> higherIsBest ? b.value-a.value : a.value-b.value);
+  const idx=sorted.findIndex(x=>x.country===selected);
+  return `Rank ${idx+1}/${sorted.length} (highest = best)`;
 }
 
 /* ---------- State ---------- */
-let DB = [];
+let DB = [];                  // [{country, aqi, lifeYears, qolPct}]
+let LIFE_MAP = {};            // country -> years
 const sel=document.getElementById('country'), btn=document.getElementById('run');
 
 /* ---------- Update only selected country ---------- */
@@ -253,8 +279,10 @@ async function updateSelected(){
   const name=sel.value, iso=ISO2[name];
   btn.disabled=true; const oldTxt=btn.textContent; btn.textContent='Loading…';
   try{
-    const [aqi,qol]=await Promise.all([fetchAQI(iso), fetchQoL(iso)]);
-    const s=makeScore(qol,aqi);
+    const [aqi,lifeObj]=await Promise.all([fetchAQI(iso), fetchLife(iso)]);
+    const qol=lifeObj.pct; const s=makeScore(qol,aqi);
+
+    LIFE_MAP[name]=lifeObj.years;
 
     // donut
     document.getElementById('score').textContent=s;
@@ -269,29 +297,16 @@ async function updateSelected(){
     document.getElementById('ico_rank').textContent='—';
     document.getElementById('ico_flag').textContent=s>=60?'Good overall':'Needs Work';
 
-    paintBox('kpi_air', goodFromAQI(aqi));
-    paintBox('kpi_qol', goodFromQOL(qol));
-    paintBox('kpi_rank', goodFromScore(s)); // προσωρινά
-    paintBox('kpi_flag', goodFromScore(s));
+    paintBox('kpi_air', clamp(1-(aqi||0)/150,0,1));
+    paintBox('kpi_qol', clamp((qol||0)/100,0,1));
+    paintBox('kpi_rank', clamp((s||0)/100,0,1));
+    paintBox('kpi_flag', clamp((s||0)/100,0,1));
 
-    if(DB.length){
-      const r = rankInDB(name);
-      document.getElementById('ico_rank').textContent = `${r.rank}/${r.of}`;
-      drawCompare(DB, name);
-      drawTopBottom(DB);
-    }else{
-      if(cmpChart) cmpChart.destroy();
-      document.getElementById('rankTable').innerHTML='';
-    }
+    // Αν έχουμε DB, σχεδίασε histograms
+    if(DB.length) updateHistograms();
   }finally{
     btn.disabled=false; btn.textContent=oldTxt;
   }
-}
-
-/* ---------- Rank helper ---------- */
-function rankInDB(name){
-  const arr=DB.map(c=>({name:c.country,s:makeScore(c.qol,c.aqi)})).sort((a,b)=>b.s-a.s);
-  const i=arr.findIndex(x=>x.name===name); return {rank:i+1, of:arr.length||1};
 }
 
 /* ---------- Background load all countries ---------- */
@@ -301,25 +316,55 @@ async function loadAllInBackground(){
   for(const n of names){
     const iso=ISO2[n];
     try{
-      const [aqi,qol]=await Promise.all([fetchAQI(iso), fetchQoL(iso)]);
-      tmp.push({country:n, aqi, qol});
+      const [aqi, lifeObj]=await Promise.all([fetchAQI(iso), fetchLife(iso)]);
+      tmp.push({country:n, aqi, lifeYears:lifeObj.years, qolPct:lifeObj.pct});
+      LIFE_MAP[n]=lifeObj.years;
     }catch(e){
-      tmp.push({country:n, aqi:80, qol:75});
+      tmp.push({country:n, aqi:80, lifeYears:81, qolPct:75});
+      LIFE_MAP[n]=81;
     }
-    await new Promise(r=>setTimeout(r,150));
+    await new Promise(r=>setTimeout(r,120));
   }
   DB=tmp;
+
+  // ανανέωση KPI rank
   const current=sel.value;
   if(current){
-    const r=rankInDB(current);
-    document.getElementById('ico_rank').textContent=`${r.rank}/${r.of}`;
-    drawCompare(DB, current);
-    drawTopBottom(DB);
+    const arr=DB.map(c=>({name:c.country,s:makeScore(c.qolPct,c.aqi)})).sort((a,b)=>b.s-a.s);
+    const i=arr.findIndex(x=>x.name===current);
+    document.getElementById('ico_rank').textContent=`${i+1}/${arr.length}`;
   }
+
+  updateHistograms();
+}
+
+/* ---------- Histograms refresh ---------- */
+function updateHistograms(){
+  const selected=sel.value;
+
+  // life expectancy
+  const lifeSeries = Object.entries(LIFE_MAP).map(([country,years])=>({country, value:+years}));
+  if(lifeChart) lifeChart.destroy();
+  lifeChart = drawHistogram('lifeChart', lifeSeries, selected, {destroy:{chart:lifeChart}});
+  document.getElementById('lifeRank').textContent = rankText(lifeSeries, selected, true);
+
+  // house price
+  const houseSeries = Object.entries(HOUSE_USD_M2).map(([country,val])=>({country, value:+val}));
+  if(houseChart) houseChart.destroy();
+  houseChart = drawHistogram('houseChart', houseSeries, selected, {destroy:{chart:houseChart}, prefix:'$ '});
+  document.getElementById('houseRank').textContent = rankText(houseSeries, selected, true);
+
+  // life insurance premium
+  const insSeries = Object.entries(LIFEINS_USD_YR).map(([country,val])=>({country, value:+val}));
+  if(insChart) insChart.destroy();
+  insChart = drawHistogram('insChart', insSeries, selected, {destroy:{chart:insChart}, prefix:'$ '});
+  document.getElementById('insRank').textContent = rankText(insSeries, selected, true);
 }
 
 /* ---------- Events ---------- */
 btn.addEventListener('click', updateSelected);
+sel.addEventListener('change', ()=>{ updateSelected(); updateHistograms(); });
+
 updateSelected();      // immediate for selected
 loadAllInBackground(); // stats in background
 </script>
