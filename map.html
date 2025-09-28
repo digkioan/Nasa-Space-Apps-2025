@@ -110,34 +110,28 @@
   <script>
   /************ 1) GROQ LLM (client-side) ************/
   // ⚠️ Βάλε το δικό σου key. Για production βάλε proxy για ασφάλεια.
-  const GROQ_API_KEY = "_";
+  //const GROQ_API_KEY = "_";
   const GROQ_MODEL   = "llama-3.1-8b-instant"; // ή "llama-3.3-70b-versatile"
 
   function isAscii(s){ return /^[\x00-\x7F]*$/.test(s); }
 
   async function askGroq(prompt){
-    const token = "Bearer " + GROQ_API_KEY.trim();
-    if (!isAscii(token)) throw new Error("API key must be ASCII only.");
-    if (!isAscii(prompt)) throw new Error("Please use English letters (ASCII only).");
+  const q = (prompt ?? "").trim();
+  if (!q) throw new Error("Empty prompt.");
+  if (!isAscii(q)) throw new Error("Please use English letters (ASCII only).");
 
-    const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method:"POST",
-      headers:{ "Content-Type":"application/json", "Authorization": token },
-      body: JSON.stringify({
-        model: GROQ_MODEL,
-        // concise English answers (1–2 sentences max)
-        messages: [
-          { role:"system", content:"You are a helpful assistant. Respond in concise English, maximum 1–2 sentences." },
-          { role:"user", content: prompt }
-        ],
-        temperature: 0.2,
-        max_tokens: 140
-      })
-    });
-    const j = await r.json();
-    if (!r.ok) throw new Error(j?.error?.message || JSON.stringify(j));
-    return j.choices?.[0]?.message?.content ?? "(no response)";
-  }
+  // Καλούμε τον backend proxy: /api/groq
+  const r = await fetch("/api/groq", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt: q, model: GROQ_MODEL })
+  });
+
+  const j = await r.json().catch(()=> ({}));
+  if (!r.ok) throw new Error(j?.error || "Server error");
+  return j?.text ?? "(no response)";
+}
+
 
   // Chat UI
   (function(){
