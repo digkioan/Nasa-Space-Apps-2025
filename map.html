@@ -3,411 +3,327 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Space Apps — 3D Globe (NASA Web WorldWind)</title>
+  <title>Space Apps — 3D Globe (NASA Web WorldWind + Groq AI)</title>
   <style>
     html, body { height:100%; margin:0; background:#000; }
     /* Fullscreen starry GIF background */
-    #bg {
-      position: fixed; inset: 0; z-index: -1;
-      background: #000 url("stars.gif") center / cover repeat;
-      image-rendering: optimizeQuality;
-    }
+    #bg { position:fixed; inset:0; z-index:-1; background:#000 url("stars.gif") center/cover repeat; image-rendering:optimizeQuality; }
     /* Stage holds the WorldWind canvas */
     #stage { position:absolute; inset:0 }
     #wwdCanvas { position:absolute; inset:0; width:100%; height:100%; border:0; display:block }
 
     /* Minimal control (start/stop rotate) */
     .panel {
-      position: absolute; top: 12px; left: 12px;
-      display: inline-flex; gap: 8px; align-items: center;
-      background: rgba(0,0,0,.45); color:#fff; padding: 8px 10px; border-radius: 12px;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; font-size: 14px;
-      backdrop-filter: blur(4px);
+      position:absolute; top:12px; left:12px;
+      display:inline-flex; gap:8px; align-items:center;
+      background:rgba(0,0,0,.45); color:#fff; padding:8px 10px; border-radius:12px;
+      font-family:system-ui, -apple-system, Segoe UI, Roboto, sans-serif; font-size:14px;
+      border:1px solid rgba(255,255,255,.2); backdrop-filter:blur(4px);
     }
-    .panel button {
-      padding: 6px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,.25);
-      background: rgba(255,255,255,.12); color: #fff; cursor: pointer;
-    }
-    .panel button:hover { background: rgba(255,255,255,.2); }
+    .panel button { padding:6px 10px; border-radius:8px; border:1px solid rgba(255,255,255,.25); background:rgba(255,255,255,.12); color:#fff; cursor:pointer }
+    .panel button:hover { background:rgba(255,255,255,.2) }
 
     /* Analog joystick */
     .joystick {
-      position: absolute; left: 16px; bottom: 16px; width: 120px; height: 120px; border-radius: 50%;
-      background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.15); backdrop-filter: blur(4px);
-      touch-action: none; user-select: none;
+      position:absolute; left:16px; bottom:16px; width:120px; height:120px; border-radius:50%;
+      background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.15); backdrop-filter:blur(4px);
+      touch-action:none; user-select:none;
     }
     .joystick .stick {
-      position: absolute; left: 50%; top: 50%; width: 56px; height: 56px; margin-left: -28px; margin-top: -28px; border-radius: 50%;
-      background: rgba(255,255,255,.25); border: 1px solid rgba(255,255,255,.35);
-      box-shadow: 0 4px 14px rgba(0,0,0,.35);
-      transition: transform 80ms ease-out;
-      touch-action: none;
+      position:absolute; left:50%; top:50%; width:56px; height:56px; margin-left:-28px; margin-top:-28px; border-radius:50%;
+      background:rgba(255,255,255,.25); border:1px solid rgba(255,255,255,.35); box-shadow:0 4px 14px rgba(0,0,0,.35);
+      transition:transform 80ms ease-out; touch-action:none;
     }
+
+    /* === Groq chat (bigger window) === */
+    #groqChat{
+      position:fixed; right:16px; bottom:16px; width:460px; max-height:70vh;
+      display:flex; flex-direction:column;
+      background:rgba(13,17,23,.92); color:#e2e8f0;
+      border:1px solid #263143; border-radius:14px; box-shadow:0 12px 30px rgba(0,0,0,.35);
+      font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Arial; backdrop-filter:blur(6px);
+    }
+    #groqHead{ display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-bottom:1px solid #263143 }
+    #groqHead b{ font-size:14px }
+    #groqBody{ flex:1; overflow:auto; padding:10px 12px }
+    .msg{ margin:8px 0; display:flex }
+    .msg.me{ justify-content:flex-end }
+    .bubble{ max-width:80%; white-space:pre-wrap; padding:10px 12px; border-radius:10px; border:1px solid #263143; background:#0f172a }
+    .me .bubble{ background:#1e3a8a; border-color:transparent; color:#fff }
+    #groqBar{ display:flex; gap:8px; padding:10px; border-top:1px solid #263143 }
+    #groqInput{ flex:1; padding:10px; border-radius:10px; border:1px solid #263143; background:#0b1224; color:#e2e8f0; outline:none }
+    #groqSend{ padding:10px 12px; border:0; border-radius:10px; background:#3b82f6; color:#fff; cursor:pointer }
+    #groqMini{ background:none; border:0; color:#9fb3ff; cursor:pointer; font-size:12px }
+    .pill{ font-size:12px; padding:6px 10px; border-radius:999px; border:1px solid #263143; background:rgba(255,255,255,.06); color:#e2e8f0; cursor:pointer; margin:0 6px 8px 0 }
   </style>
 </head>
 <body>
-  <!-- Starry background (put your GIF at stars.gif) -->
+  <!-- Background -->
   <div id="bg" aria-hidden="true"></div>
 
-  <!-- Globe container -->
-  <div id="stage">
-    <canvas id="wwdCanvas"></canvas>
-  </div>
+  <!-- Globe -->
+  <div id="stage"><canvas id="wwdCanvas"></canvas></div>
 
-  <!-- Minimal control -->
+  <!-- Controls -->
   <div class="panel">
     <span>3D Globe</span>
     <button id="toggleSpin">⏸ Stop</button>
   </div>
-  
+
   <!-- Year/Date controls (static CSVs) -->
   <div class="panel" style="top:70px; gap:8px;">
-    <label style="display:flex;align-items:center;gap:6px">
-      Year:
-      <select id="yearSel"></select>
-    </label>
-    <label style="display:flex;align-items:center;gap:6px">
-      Date:
-      <select id="dateSel"></select>
-    </label>
+    <label style="display:flex;align-items:center;gap:6px">Year: <select id="yearSel"></select></label>
+    <label style="display:flex;align-items:center;gap:6px">Date: <select id="dateSel"></select></label>
     <button id="renderBtn">Render</button>
-    <span id="status" style="opacity:.8"></span>
+    <span id="status" style="opacity:.85"></span>
   </div>
 
+  <!-- Legend -->
+  <div class="panel" style="top:126px;gap:10px;align-items:center">
+    <span style="opacity:.85">Legend</span>
+    <canvas id="legend" width="180" height="10" style="display:block;border-radius:6px"></canvas>
+    <span id="legMin" style="opacity:.75;font-size:12px">min</span>
+    <span id="legMax" style="opacity:.75;font-size:12px">max</span>
+  </div>
 
-
-  <!-- On‑screen joystick -->
+  <!-- Joystick -->
   <div class="joystick" id="joy"><div class="stick" id="stick"></div></div>
+
+  <!-- Groq chat widget -->
+  <div id="groqChat" aria-live="polite">
+    <div id="groqHead"><b>Ask AI</b><button id="groqMini">–</button></div>
+    <div id="groqBody"></div>
+    <div style="padding:0 10px 0 10px">
+      <button class="pill">Summarize today’s air quality in Greece.</button>
+      <button class="pill">Compare PM2.5 in Athens vs Thessaloniki.</button>
+      <button class="pill">Give 1 tip for high AQI.</button>
+    </div>
+    <div id="groqBar">
+      <input id="groqInput" placeholder="English only… (e.g., What is AQI?)" />
+      <button id="groqSend">Send</button>
+    </div>
+  </div>
 
   <!-- NASA Web WorldWind -->
   <script src="https://files.worldwind.arc.nasa.gov/artifactory/web/0.11.0/worldwind.min.js"></script>
+
   <script>
-    // ====== Init WorldWind native globe ======
-    const canvas = document.getElementById('wwdCanvas');
-    let rotating = true;         // auto-rotate ON by default
-    const ROTATE_SPEED = 0.03;   // degrees per frame (~1.8°/s)
+  /************ 1) GROQ LLM (client-side) ************/
+  // ⚠️ Βάλε το δικό σου key. Για production βάλε proxy για ασφάλεια.
+  const GROQ_API_KEY = "_";
+  const GROQ_MODEL   = "llama-3.1-8b-instant"; // ή "llama-3.3-70b-versatile"
 
-    function initWorldWind() {
-      if (!window.WorldWind) { console.error('WorldWind failed to load'); return null; }
-      WorldWind.configuration.baseUrl = 'https://files.worldwind.arc.nasa.gov/artifactory/web/0.11.0/';
-      const wwd = new WorldWind.WorldWindow('wwdCanvas');
+  function isAscii(s){ return /^[\x00-\x7F]*$/.test(s); }
 
-      // Base imagery
-      wwd.addLayer(new WorldWind.BMNGOneImageLayer());
-      wwd.addLayer(new WorldWind.BMNGLandsatLayer());
-      // Atmosphere glow (stars are the page background GIF)
-      wwd.addLayer(new WorldWind.AtmosphereLayer());
+  async function askGroq(prompt){
+    const token = "Bearer " + GROQ_API_KEY.trim();
+    if (!isAscii(token)) throw new Error("API key must be ASCII only.");
+    if (!isAscii(prompt)) throw new Error("Please use English letters (ASCII only).");
 
-      // Start zoomed in over Greece
-      wwd.navigator.lookAtLocation.latitude = 37.9838;  // Athens
-      wwd.navigator.lookAtLocation.longitude = 23.7275;
-      wwd.navigator.range = 9e5; // ~900 km from surface for a regional view
-      wwd.redraw();
+    const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method:"POST",
+      headers:{ "Content-Type":"application/json", "Authorization": token },
+      body: JSON.stringify({
+        model: GROQ_MODEL,
+        // concise English answers (1–2 sentences max)
+        messages: [
+          { role:"system", content:"You are a helpful assistant. Respond in concise English, maximum 1–2 sentences." },
+          { role:"user", content: prompt }
+        ],
+        temperature: 0.2,
+        max_tokens: 140
+      })
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j?.error?.message || JSON.stringify(j));
+    return j.choices?.[0]?.message?.content ?? "(no response)";
+  }
 
-      // Auto-rotate loop
-      function spin() {
-        if (rotating) {
-          wwd.navigator.heading = (wwd.navigator.heading + ROTATE_SPEED) % 360;
-          wwd.redraw();
-        }
-        requestAnimationFrame(spin);
-      }
+  // Chat UI
+  (function(){
+    const body = document.getElementById('groqBody');
+    const input = document.getElementById('groqInput');
+    const send  = document.getElementById('groqSend');
+    const mini  = document.getElementById('groqMini');
+
+    function add(role, text){
+      const row = document.createElement('div'); row.className = 'msg ' + (role==='user'?'me':'ai');
+      const b = document.createElement('div'); b.className = 'bubble'; b.textContent = text;
+      row.appendChild(b); body.appendChild(row); body.scrollTop = body.scrollHeight;
+    }
+    async function onSend(q){
+      const prompt = (q ?? input.value).trim(); if(!prompt) return;
+      if (!isAscii(prompt)) { add('ai', 'Please write in English (ASCII only).'); input.focus(); return; }
+      input.value=''; add('user', prompt); send.disabled=true;
+      try { const reply = await askGroq(prompt); add('ai', reply); }
+      catch(e){ add('ai','Error: '+e.message); }
+      finally{ send.disabled=false; }
+    }
+    send.addEventListener('click', ()=> onSend());
+    input.addEventListener('keydown', e=>{ if(e.key==='Enter') onSend(); });
+    document.querySelectorAll('.pill').forEach(p=>p.addEventListener('click', ()=> onSend(p.textContent)));
+    // minimize
+    let minimized=false;
+    mini.addEventListener('click', ()=> {
+      minimized=!minimized;
+      document.getElementById('groqBody').style.display = minimized?'none':'block';
+      document.getElementById('groqBar').style.display  = minimized?'none':'flex';
+      mini.textContent = minimized?'▢':'–';
+    });
+    // helper for globe
+    window.askAi = onSend;
+  })();
+
+  /************ 2) WORLDWIND GLOBE ************/
+  const canvas = document.getElementById('wwdCanvas');
+  let rotating = true;
+  const ROTATE_SPEED = 0.03; // deg/frame (~1.8°/s)
+
+  function initWorldWind(){
+    if (!window.WorldWind){ console.error('WorldWind failed to load'); return null; }
+    WorldWind.configuration.baseUrl = 'https://files.worldwind.arc.nasa.gov/artifactory/web/0.11.0/';
+    const wwd = new WorldWind.WorldWindow('wwdCanvas');
+
+    // Base imagery + atmosphere
+    wwd.addLayer(new WorldWind.BMNGOneImageLayer());
+    wwd.addLayer(new WorldWind.BMNGLandsatLayer());
+    wwd.addLayer(new WorldWind.AtmosphereLayer());
+
+    // Start over Greece
+    wwd.navigator.lookAtLocation.latitude = 37.9838;
+    wwd.navigator.lookAtLocation.longitude = 23.7275;
+    wwd.navigator.range = 9e5; // ~900 km
+    wwd.redraw();
+
+    // Auto-rotate
+    (function spin(){
+      if (rotating){ wwd.navigator.heading = (wwd.navigator.heading + ROTATE_SPEED) % 360; wwd.redraw(); }
       requestAnimationFrame(spin);
-      return wwd;
-    }
-
-    const wwd = initWorldWind();
-
-    // ====== Configure CSVs ======
-    // history covers real years (e.g., 2020–2024); prediction covers the future (e.g., 2025)
-    const DATASETS = [
-      { key: 'history',    url: 'o3_merged_unified.csv',    prediction: false },
-      { key: 'prediction', url: 'o3_prediction.csv',   prediction: true  }
-    ];
-
-    const OVERLAY_ALPHA = 0.55;
-
-    // ====== Internals: year-indexed store ======
-    const YEARS = new Map(); // year -> { label, byDate(Map date->rows), dates[], minMaxByDate(Map) }
-    let currentOverlayLayer = null;
-
-    // ---------- Utils ----------
-    function parseCsv(text) {
-      const lines = text.trim().split(/\r?\n/);
-      if (!lines.length) return [];
-      const header = lines[0].split(',').map(s=>s.trim().toLowerCase());
-      const idx = {
-        time: header.indexOf('time'),
-        lat:  header.indexOf('latitude'),
-        lon:  header.indexOf('longitude'),
-        val:  header.indexOf('value'),
-      };
-      if (Object.values(idx).some(i => i < 0)) throw new Error('CSV must have time,latitude,longitude,value columns');
-      const out = [];
-      for (let i=1;i<lines.length;i++){
-        const parts = lines[i].split(',');
-        if (parts.length < 4) continue;
-        const t = (parts[idx.time]||'').trim();
-        const iso = t.length >= 10 ? t.slice(0,10) : t;
-        const y = parseInt(iso.slice(0,4), 10);
-        const lat = parseFloat(parts[idx.lat]);
-        const lon = parseFloat(parts[idx.lon]);
-        const val = parseFloat(parts[idx.val]);
-        if (!isFinite(lat) || !isFinite(lon) || !isFinite(val) || !iso || !isFinite(y)) continue;
-        out.push({ year: y, time: iso, lat, lon, val });
-      }
-      return out;
-    }
-
-    function robustMinMax(values) {
-      const v = values.slice().sort((a,b)=>a-b);
-      if (!v.length) return {min:0,max:1};
-      const q = p => v[Math.floor(Math.min(v.length-1, Math.max(0, p*(v.length-1))))];
-      const min = q(0.01), max = q(0.99);
-      return min === max ? {min: min-1, max: max+1} : {min, max};
-    }
-
-    function valueToColor(val, min, max, alpha=1) {
-      const t = Math.max(0, Math.min(1, (val - min) / (max - min)));
-      const stops = [
-        {t:0.00, c:[ 44,123,182]},
-        {t:0.33, c:[171,217,233]},
-        {t:0.66, c:[255,255,191]},
-        {t:1.00, c:[215, 25, 28]}
-      ];
-      let c0=stops[0].c, c1=stops.at(-1).c, t0=0, t1=1;
-      for (let i=0;i<stops.length-1;i++){
-        if (t>=stops[i].t && t<=stops[i+1].t){ c0=stops[i].c; c1=stops[i+1].c; t0=stops[i].t; t1=stops[i+1].t; break; }
-      }
-      const k = (t - t0) / (t1 - t0);
-      const r = Math.round(c0[0] + (c1[0]-c0[0])*k)/255;
-      const g = Math.round(c0[1] + (c1[1]-c0[1])*k)/255;
-      const b = Math.round(c0[2] + (c1[2]-c0[2])*k)/255;
-      return new WorldWind.Color(r,g,b,alpha);
-    }
-
-    function paintLegend(min, max) {
-      const cv = document.getElementById('legend');
-      const ctx = cv.getContext('2d');
-      const w=cv.width,h=cv.height;
-      const img = ctx.createImageData(w,h);
-      for (let x=0;x<w;x++){
-        const t = x/(w-1);
-        const c = valueToColor(min + t*(max-min), min, max, 1);
-        const R = Math.round(c.red*255), G=Math.round(c.green*255), B=Math.round(c.blue*255);
-        for (let y=0;y<h;y++){
-          const i=(y*w+x)*4; img.data[i]=R; img.data[i+1]=G; img.data[i+2]=B; img.data[i+3]=255;
-        }
-      }
-      ctx.putImageData(img,0,0);
-      document.getElementById('legMin').textContent = min.toExponential(2);
-      document.getElementById('legMax').textContent = max.toExponential(2);
-    }
-
-    function medianDiff(sortedVals){
-      const diffs = [];
-      for (let i=1;i<sortedVals.length;i++){
-        const d = sortedVals[i] - sortedVals[i-1];
-        if (isFinite(d) && d > 0) diffs.push(d);
-      }
-      diffs.sort((a,b)=>a-b);
-      return diffs.length ? diffs[Math.floor(diffs.length/2)] : NaN;
-    }
-
-    // Grid cell layer (squares)
-    function makeOverlayLayer(rows, min, max, title='Overlay (grid)'){
-      const layer = new WorldWind.RenderableLayer(title);
-
-      const uniqLats = Array.from(new Set(rows.map(r=>r.lat))).sort((a,b)=>a-b);
-      const uniqLons = Array.from(new Set(rows.map(r=>r.lon))).sort((a,b)=>a-b);
-      let dLat = medianDiff(uniqLats);
-      let dLon = medianDiff(uniqLons);
-      if (!isFinite(dLat) || dLat <= 0) dLat = 0.2;
-      if (!isFinite(dLon) || dLon <= 0) dLon = 0.2;
-      const gap = 0.0 * Math.min(dLat, dLon); // set >0 for tiny gaps
-      const hLat = dLat/2 - gap/2, hLon = dLon/2 - gap/2;
-
-      const base = new WorldWind.ShapeAttributes(null);
-      base.drawOutline = false; base.applyLighting = false;
-
-      for (const r of rows){
-        const sa = new WorldWind.ShapeAttributes(base);
-        sa.interiorColor = valueToColor(r.val, min, max, OVERLAY_ALPHA);
-        const corners = [
-          new WorldWind.Location(r.lat - hLat, r.lon - hLon),
-          new WorldWind.Location(r.lat - hLat, r.lon + hLon),
-          new WorldWind.Location(r.lat + hLat, r.lon + hLon),
-          new WorldWind.Location(r.lat + hLat, r.lon - hLon),
-        ];
-        const poly = new WorldWind.SurfacePolygon(corners, sa);
-        layer.addRenderable(poly);
-      }
-      return layer;
-    }
-
-    function removeCurrentLayer(){
-      if (currentOverlayLayer){ wwd.removeLayer(currentOverlayLayer); currentOverlayLayer=null; wwd.redraw(); }
-    }
-
-    // ---------- Render (by Year then Date) ----------
-    function renderSelected(){
-      const yStr = document.getElementById('yearSel').value;
-      const date = document.getElementById('dateSel').value;
-      const entry = YEARS.get(parseInt(yStr,10));
-      if (!entry){ document.getElementById('status').textContent='Year not loaded'; return; }
-      const rows = entry.byDate.get(date) || [];
-      if (!rows.length){
-        document.getElementById('status').textContent = `No rows for ${date}`;
-        removeCurrentLayer(); return;
-      }
-      const mm = entry.minMaxByDate.get(date) || robustMinMax(rows.map(r=>r.val));
-      removeCurrentLayer();
-      currentOverlayLayer = makeOverlayLayer(rows, mm.min, mm.max, `${entry.label} ${date}`);
-      wwd.addLayer(currentOverlayLayer); wwd.redraw();
-      paintLegend(mm.min, mm.max);
-      document.getElementById('status').textContent = `Rendered ${rows.length} points (${entry.label} — ${date})`;
-    }
-
-    // ---------- Load datasets and index into YEARS ----------
-    async function loadDataset(def){
-      const res = await fetch(def.url, { cache: 'no-store' });
-      if (!res.ok) throw new Error(`Failed to fetch ${def.url}: ${res.status}`);
-      const rows = parseCsv(await res.text());
-
-      // group by year, then date
-      const byYear = new Map();
-      for (const r of rows){
-        let y = byYear.get(r.year);
-        if (!y) { y = new Map(); byYear.set(r.year, y); }
-        const arr = y.get(r.time) || []; arr.push(r); y.set(r.time, arr);
-      }
-
-      for (const [year, byDate] of byYear.entries()){
-        const dates = Array.from(byDate.keys()).sort();
-        const minMaxByDate = new Map();
-        for (const d of dates){
-          const vs = byDate.get(d).map(x=>x.val).filter(Number.isFinite);
-          minMaxByDate.set(d, robustMinMax(vs));
-        }
-        const existing = YEARS.get(year);
-        const label = def.prediction ? `${year} (Prediction)` : `${year}`;
-        if (existing){
-          // merge if two files provide same year (rare)
-          for (const d of dates){
-            const prev = existing.byDate.get(d) || [];
-            existing.byDate.set(d, prev.concat(byDate.get(d)));
-            const mmThis = robustMinMax((prev.concat(byDate.get(d))).map(x=>x.val));
-            existing.minMaxByDate.set(d, mmThis);
-            if (!existing.dates.includes(d)) existing.dates.push(d);
-          }
-          existing.dates.sort();
-          if (def.prediction) existing.label = label;
-        } else {
-          YEARS.set(year, { label, byDate, dates, minMaxByDate });
-        }
-      }
-    }
-
-    async function loadAllDatasets(){
-      const yearSel = document.getElementById('yearSel');
-      document.getElementById('status').textContent = 'Loading datasets…';
-      for (const def of DATASETS){
-        try { await loadDataset(def); } catch(e){ console.error(e); }
-      }
-      const years = Array.from(YEARS.keys()).sort((a,b)=>a-b);
-      yearSel.innerHTML = '';
-      for (const y of years){
-        const opt = document.createElement('option');
-        opt.value = String(y);
-        opt.textContent = YEARS.get(y).label;
-        yearSel.appendChild(opt);
-      }
-      yearSel.addEventListener('change', onYearChange);
-      onYearChange();
-    }
-
-    function onYearChange(){
-      const yStr = document.getElementById('yearSel').value;
-      const entry = YEARS.get(parseInt(yStr,10));
-      const dateSel = document.getElementById('dateSel');
-      dateSel.innerHTML = '';
-      for (const d of entry.dates){
-        const opt = document.createElement('option');
-        opt.value = d; opt.textContent = d;
-        dateSel.appendChild(opt);
-      }
-      document.getElementById('status').textContent = `Year ${entry.label}: ${entry.dates.length} day(s)`;
-      renderSelected();
-    }
-
-    document.getElementById('renderBtn').addEventListener('click', renderSelected);
-
-    // Optional: center on Greece initially
-    (function flyToGreece(){
-      if (!wwd) return;
-      wwd.navigator.lookAtLocation.latitude = 39.0;
-      wwd.navigator.lookAtLocation.longitude = 23.5;
-      wwd.navigator.range = 8.5e5; wwd.redraw();
     })();
 
-    // Kickoff dataset loading
-    loadAllDatasets();
-    // ====== UI: Start/Stop auto-rotate ======
-    const btn = document.getElementById('toggleSpin');
-    btn.addEventListener('click', () => {
-      rotating = !rotating;
-      btn.textContent = rotating ? '⏸ Stop' : '⟳ Auto-rotate';
+    // Double-click → ask AI about lat/lon (in English)
+    canvas.addEventListener('dblclick', (ev)=>{
+      const r = canvas.getBoundingClientRect();
+      const pick = wwd.pickTerrain(new WorldWind.Point(ev.clientX - r.left, ev.clientY - r.top));
+      if (!pick.objects.length) return;
+      const p = pick.objects[0].position;
+      const lat = p.latitude.toFixed(3), lon = p.longitude.toFixed(3);
+      window.askAi?.(`Give a very short description of this location (lat ${lat}, lon ${lon}).`);
     });
 
-    // ====== Analog joystick to move the globe (pan) ======
-    const joy = document.getElementById('joy');
-    const stick = document.getElementById('stick');
-    const R = 50; // radius in px for max deflection
-    let active = false, joyCenter = {x:0,y:0}, vec = {x:0,y:0};
+    return wwd;
+  }
+  const wwd = initWorldWind();
 
-    function setStick(x, y){
-      // constrain to circle of radius R
-      const dx = x - joyCenter.x, dy = y - joyCenter.y;
-      const len = Math.hypot(dx, dy);
-      const clamped = len > R ? { x: dx * R/len, y: dy * R/len } : { x: dx, y: dy };
-      stick.style.transform = `translate(${clamped.x}px, ${clamped.y}px)`;
-      vec.x = clamped.x / R; // -1..1
-      vec.y = clamped.y / R; // -1..1
+  // Year/Date overlay UI (your existing logic) -----------------------------
+  const DATASETS = [
+    { key: 'history',    url: 'o3_merged_unified.csv', prediction: false },
+    { key: 'prediction', url: 'o3_prediction.csv',     prediction: true  }
+  ];
+  const OVERLAY_ALPHA = 0.55;
+  const YEARS = new Map(); // year -> { label, byDate(Map), dates[], minMaxByDate(Map) }
+  let currentOverlayLayer = null;
+
+  function parseCsv(text){
+    const lines = text.trim().split(/\r?\n/); if(!lines.length) return [];
+    const header = lines[0].split(',').map(s=>s.trim().toLowerCase());
+    const idx = { time:header.indexOf('time'), lat:header.indexOf('latitude'), lon:header.indexOf('longitude'), val:header.indexOf('value') };
+    if (Object.values(idx).some(i=>i<0)) throw new Error('CSV must have time,latitude,longitude,value columns');
+    const out=[];
+    for (let i=1;i<lines.length;i++){
+      const parts = lines[i].split(','); if (parts.length<4) continue;
+      const iso = (parts[idx.time]||'').trim().slice(0,10);
+      const y = parseInt(iso.slice(0,4),10);
+      const lat = parseFloat(parts[idx.lat]); const lon=parseFloat(parts[idx.lon]); const val=parseFloat(parts[idx.val]);
+      if (isFinite(lat)&&isFinite(lon)&&isFinite(val)&&iso&&isFinite(y)) out.push({year:y,time:iso,lat,lon,val});
     }
-
-    function resetStick(){ stick.style.transform = 'translate(0,0)'; vec.x = vec.y = 0; }
-
-    function pageToLocal(ev){ const r = joy.getBoundingClientRect(); return { x: ev.clientX - r.left - r.width/2, y: ev.clientY - r.top - r.height/2, cx: r.left + r.width/2, cy: r.top + r.height/2 }; }
-
-    joy.addEventListener('pointerdown', ev => {
-      active = true; joy.setPointerCapture(ev.pointerId);
-      const p = pageToLocal(ev); joyCenter = { x: p.cx - joy.getBoundingClientRect().left, y: p.cy - joy.getBoundingClientRect().top };
-      setStick(p.x + joy.getBoundingClientRect().width/2, p.y + joy.getBoundingClientRect().height/2);
-      rotating = false; // pause auto-rotate while user controls
-    });
-    joy.addEventListener('pointermove', ev => { if (!active) return; const p = pageToLocal(ev); setStick(p.cx, p.cy); });
-    joy.addEventListener('pointerup', ev => { active = false; resetStick(); });
-    joy.addEventListener('pointercancel', () => { active = false; resetStick(); });
-
-    // Apply joystick vector each frame
-    const PAN_SPEED = 0.15; // degrees per second at full deflection (approx)
-    let lastTs = performance.now();
-    function joystickLoop(ts){
-      const dt = (ts - lastTs) / 1000; lastTs = ts;
-      if (wwd && (Math.abs(vec.x) > 0.01 || Math.abs(vec.y) > 0.01)){
-        // Adjust longitude and latitude; invert Y so up moves north
-        const lat = wwd.navigator.lookAtLocation.latitude - vec.y * PAN_SPEED * dt * 60; // scaled by 60 fps nominal
-        let lon = wwd.navigator.lookAtLocation.longitude + vec.x * PAN_SPEED * dt * 60 / Math.max(0.2, Math.cos(lat*Math.PI/180));
-        // Clamp latitude to avoid poles
-        const clampedLat = Math.max(-85, Math.min(85, lat));
-        if (lon < -180) lon += 360; else if (lon > 180) lon -= 360;
-        wwd.navigator.lookAtLocation.latitude = clampedLat;
-        wwd.navigator.lookAtLocation.longitude = lon;
-        wwd.redraw();
-      }
-      requestAnimationFrame(joystickLoop);
+    return out;
+  }
+  function robustMinMax(values){ const v=values.slice().sort((a,b)=>a-b); if(!v.length) return {min:0,max:1};
+    const q=p=>v[Math.floor(Math.min(v.length-1,Math.max(0,p*(v.length-1))))]; const min=q(0.01),max=q(0.99);
+    return min===max?{min:min-1,max:max+1}:{min,max}; }
+  function valueToColor(val,min,max,alpha=1){
+    const t = Math.max(0,Math.min(1,(val-min)/(max-min)));
+    const stops=[{t:0,c:[44,123,182]},{t:0.33,c:[171,217,233]},{t:0.66,c:[255,255,191]},{t:1,c:[215,25,28]}];
+    let c0=stops[0].c,c1=stops.at(-1).c,t0=0,t1=1; for(let i=0;i<stops.length-1;i++){if(t>=stops[i].t&&t<=stops[i+1].t){c0=stops[i].c;c1=stops[i+1].c;t0=stops[i].t;t1=stops[i+1].t;break;}}
+    const k=(t-t0)/(t1-t0); const r=Math.round(c0[0]+(c1[0]-c0[0])*k)/255, g=Math.round(c0[1]+(c1[1]-c0[1])*k)/255, b=Math.round(c0[2]+(c1[2]-c0[2])*k)/255;
+    return new WorldWind.Color(r,g,b,alpha);
+  }
+  function paintLegend(min,max){
+    const cv=document.getElementById('legend'), ctx=cv.getContext('2d'), w=cv.width,h=cv.height, img=ctx.createImageData(w,h);
+    for(let x=0;x<w;x++){ const t=x/(w-1); const c=valueToColor(min+t*(max-min),min,max,1); const R=Math.round(c.red*255),G=Math.round(c.green*255),B=Math.round(c.blue*255);
+      for(let y=0;y<h;y++){ const i=(y*w+x)*4; img.data[i]=R; img.data[i+1]=G; img.data[i+2]=B; img.data[i+3]=255; } }
+    ctx.putImageData(img,0,0); document.getElementById('legMin').textContent=min.toExponential(2); document.getElementById('legMax').textContent=max.toExponential(2);
+  }
+  function medianDiff(a){ const d=[]; for(let i=1;i<a.length;i++){const v=a[i]-a[i-1]; if(isFinite(v)&&v>0) d.push(v);} d.sort((x,y)=>x-y); return d.length?d[Math.floor(d.length/2)]:NaN; }
+  function makeOverlayLayer(rows,min,max,title='Overlay'){
+    const layer=new WorldWind.RenderableLayer(title);
+    const uniqLats=Array.from(new Set(rows.map(r=>r.lat))).sort((a,b)=>a-b);
+    const uniqLons=Array.from(new Set(rows.map(r=>r.lon))).sort((a,b)=>a-b);
+    let dLat=medianDiff(uniqLats), dLon=medianDiff(uniqLons); if(!isFinite(dLat)||dLat<=0) dLat=0.2; if(!isFinite(dLon)||dLon<=0) dLon=0.2;
+    const gap=0.0*Math.min(dLat,dLon); const hLat=dLat/2-gap/2, hLon=dLon/2-gap/2;
+    const base=new WorldWind.ShapeAttributes(null); base.drawOutline=false; base.applyLighting=false;
+    for(const r of rows){ const sa=new WorldWind.ShapeAttributes(base); sa.interiorColor=valueToColor(r.val,min,max,0.55);
+      const corners=[ new WorldWind.Location(r.lat-hLat,r.lon-hLon), new WorldWind.Location(r.lat-hLat,r.lon+hLon),
+                      new WorldWind.Location(r.lat+hLat,r.lon+hLon), new WorldWind.Location(r.lat+hLat,r.lon-hLon) ];
+      layer.addRenderable(new WorldWind.SurfacePolygon(corners, sa)); }
+    return layer;
+  }
+  function removeCurrentLayer(){ if(currentOverlayLayer){ wwd.removeLayer(currentOverlayLayer); currentOverlayLayer=null; wwd.redraw(); } }
+  function renderSelected(){
+    const yStr=document.getElementById('yearSel').value, date=document.getElementById('dateSel').value, entry=YEARS.get(parseInt(yStr,10));
+    if(!entry){ document.getElementById('status').textContent='Year not loaded'; return; }
+    const rows=entry.byDate.get(date)||[]; if(!rows.length){ document.getElementById('status').textContent=`No rows for ${date}`; removeCurrentLayer(); return; }
+    const mm=entry.minMaxByDate.get(date)||robustMinMax(rows.map(r=>r.val));
+    removeCurrentLayer(); currentOverlayLayer=makeOverlayLayer(rows,mm.min,mm.max,`${entry.label} ${date}`); wwd.addLayer(currentOverlayLayer); wwd.redraw();
+    paintLegend(mm.min,mm.max); document.getElementById('status').textContent=`Rendered ${rows.length} points (${entry.label} — ${date})`;
+  }
+  async function loadDataset(def){
+    const res=await fetch(def.url,{cache:'no-store'}); if(!res.ok) throw new Error(`Failed to fetch ${def.url}: ${res.status}`);
+    const rows=parseCsv(await res.text()); const byYear=new Map();
+    for(const r of rows){ let y=byYear.get(r.year); if(!y){ y=new Map(); byYear.set(r.year,y); } const arr=y.get(r.time)||[]; arr.push(r); y.set(r.time,arr); }
+    for(const [year,byDate] of byYear.entries()){
+      const dates=Array.from(byDate.keys()).sort(); const minMaxByDate=new Map();
+      for(const d of dates){ const vs=byDate.get(d).map(x=>x.val).filter(Number.isFinite); minMaxByDate.set(d,robustMinMax(vs)); }
+      const label=def.prediction?`${year} (Prediction)`:String(year); const existing=YEARS.get(year);
+      if(existing){ for(const d of dates){ const prev=existing.byDate.get(d)||[]; existing.byDate.set(d,prev.concat(byDate.get(d)));
+        existing.minMaxByDate.set(d,robustMinMax((prev.concat(byDate.get(d))).map(x=>x.val))); if(!existing.dates.includes(d)) existing.dates.push(d); }
+        existing.dates.sort(); if(def.prediction) existing.label=label;
+      } else { YEARS.set(year,{label,byDate,dates,minMaxByDate}); }
     }
-    requestAnimationFrame(joystickLoop);
+  }
+  async function loadAllDatasets(){
+    const yearSel=document.getElementById('yearSel'); document.getElementById('status').textContent='Loading datasets…';
+    for(const def of DATASETS){ try{ await loadDataset(def); }catch(e){ console.error(e); } }
+    const years=Array.from(YEARS.keys()).sort((a,b)=>a-b); yearSel.innerHTML=''; for(const y of years){ const opt=document.createElement('option'); opt.value=String(y); opt.textContent=YEARS.get(y).label; yearSel.appendChild(opt); }
+    yearSel.addEventListener('change', onYearChange); onYearChange();
+  }
+  function onYearChange(){
+    const yStr=document.getElementById('yearSel').value, entry=YEARS.get(parseInt(yStr,10)), dateSel=document.getElementById('dateSel'); dateSel.innerHTML='';
+    for(const d of entry.dates){ const opt=document.createElement('option'); opt.value=d; opt.textContent=d; dateSel.appendChild(opt); }
+    document.getElementById('status').textContent=`Year ${entry.label}: ${entry.dates.length} day(s)`; renderSelected();
+  }
+  document.getElementById('renderBtn').addEventListener('click', renderSelected);
+  (function flyToGreece(){ if(!wwd) return; wwd.navigator.lookAtLocation.latitude=39.0; wwd.navigator.lookAtLocation.longitude=23.5; wwd.navigator.range=8.5e5; wwd.redraw(); })();
+  loadAllDatasets();
+
+  // Start/Stop auto-rotate
+  document.getElementById('toggleSpin').addEventListener('click', ()=>{ rotating=!rotating; document.getElementById('toggleSpin').textContent = rotating ? '⏸ Stop' : '⟳ Auto-rotate'; });
+
+  /************ 3) JOYSTICK ************/
+  const joy=document.getElementById('joy'), stick=document.getElementById('stick'); const R=50; let active=false, center={x:0,y:0}, vec={x:0,y:0};
+  function resetStick(){ stick.style.transform='translate(0,0)'; vec.x=vec.y=0; }
+  joy.addEventListener('pointerdown', ev=>{ active=true; joy.setPointerCapture(ev.pointerId); const rect=joy.getBoundingClientRect(); center={x:rect.width/2,y:rect.height/2}; });
+  joy.addEventListener('pointermove', ev=>{ if(!active) return; const r=joy.getBoundingClientRect(), x=ev.clientX-r.left, y=ev.clientY-r.top;
+    const dx=x-center.x, dy=y-center.y, len=Math.hypot(dx,dy), k=len>R?R/len:1; stick.style.transform=`translate(${dx*k}px, ${dy*k}px)`; vec.x=(dx*k)/R; vec.y=(dy*k)/R; rotating=false; });
+  joy.addEventListener('pointerup', ()=>{ active=false; resetStick(); }); joy.addEventListener('pointercancel', ()=>{ active=false; resetStick(); });
+  const PAN_SPEED=0.15; let lastTs=performance.now();
+  (function joystickLoop(ts){ const dt=(ts-lastTs)/1000; lastTs=ts;
+    if(wwd&&(Math.abs(vec.x)>0.01||Math.abs(vec.y)>0.01)){ const lat=wwd.navigator.lookAtLocation.latitude-vec.y*PAN_SPEED*dt*60;
+      let lon=wwd.navigator.lookAtLocation.longitude+vec.x*PAN_SPEED*dt*60/Math.max(0.2,Math.cos(lat*Math.PI/180));
+      const clampedLat=Math.max(-85,Math.min(85,lat)); if(lon<-180) lon+=360; else if(lon>180) lon-=360;
+      wwd.navigator.lookAtLocation.latitude=clampedLat; wwd.navigator.lookAtLocation.longitude=lon; wwd.redraw(); }
+    requestAnimationFrame(joystickLoop); })(performance.now());
   </script>
 </body>
 </html>
