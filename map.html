@@ -114,6 +114,8 @@
     <button id="elementNO2" class="element-btn" data-element="no2">NO₂</button>
     <button id="elementSO2" class="element-btn" data-element="so2">SO₂</button>
     <button id="elementCO" class="element-btn" data-element="co">CO</button>
+    <button id="elementPM10" class="element-btn" data-element="pm10">PM₁₀</button>
+    <button id="elementPM25" class="element-btn" data-element="pm25">PM₂.₅</button>
     <span id="elementStatus" style="opacity:.75; font-size:12px"></span>
   </div>
 
@@ -123,7 +125,8 @@
   <div class="row"><span>CO</span> <code>ppbv</code></div>
   <div class="row"><span>SO<sub>2</sub></span> <code>DU (Dobson Unit)</code></div>
   <div class="row"><span>NO<sub>2</sub></span> <code>molecules/cm<sup>2</sup></code></div>
-  <div class="row"><span>PM</span> <code>ppbv</code></div>
+  <div class="row"><span>PM₁₀</span> <code>µg/m³</code></div>
+  <div class="row"><span>PM₂.₅</span> <code>µg/m³</code></div>
   <div class="row"><span>O<sub>3</sub></span> <code>ppbv</code></div>
 </div>
 
@@ -268,6 +271,20 @@
       datasets: [
         { key: 'history',    url: 'co_unified.csv', prediction: false },
         { key: 'prediction', url: 'co_prediction.csv',     prediction: true  }
+      ]
+    },
+    pm10: {
+      name: 'PM₁₀ (Particulate Matter 10)',
+      datasets: [
+        { key: 'history',    url: 'pm10_standard_2022_2024.csv', prediction: false },
+        { key: 'prediction', url: 'pm10_prediction.csv',         prediction: true  }
+      ]
+    },
+    pm25: {
+      name: 'PM₂.₅ (Particulate Matter 2.5)',
+      datasets: [
+        { key: 'history',    url: 'pm25_standard_2022_2024.csv', prediction: false },
+        { key: 'prediction', url: 'pm25_prediction.csv',         prediction: true  }
       ]
     }
   };
